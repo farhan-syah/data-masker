@@ -1360,7 +1360,7 @@
   // It sends nothing from the user's files. A failure changes nothing. The answer is kept for one hour.
   function loadStars() {
     var el = $('#stars'), KEY = 'dm-stars', now = Date.now();
-    function show(n) { el.textContent = '★ ' + fmtInt(n); el.hidden = false; el.setAttribute('aria-label', fmtInt(n) + ' stars on GitHub'); }
+    function show(n) { el.textContent = fmtInt(n); el.hidden = false; el.setAttribute('aria-label', fmtInt(n) + ' stars on GitHub'); }
     try {
       var c = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (c && typeof c.n === 'number') { show(c.n); if (now - c.t < 3600000) return; }
