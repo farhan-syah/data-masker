@@ -113,7 +113,7 @@ npm run build
 npm test
 ```
 
-- `npm run build` runs `python3 build.py`. It inlines `src/` and the vendored SheetJS into `index.html`. It writes the version from `package.json` into the page. Pass an output path to write elsewhere: `python3 build.py out.html`. Commit the rebuilt `index.html` with every change to `src/`.
+- `npm run build` runs `python3 build.py`. It inlines `src/` and the vendored SheetJS into `index.html`. It writes the version into the page from the `DM_VERSION` environment variable. Without it, the page says "development build". Release tags set it. Pass an output path to write elsewhere: `python3 build.py out.html`. Commit the rebuilt `index.html` with every change to `src/`.
 - Tests use the Chromium that Playwright installs. Set `CHROMIUM_PATH` to use a system browser, for example `CHROMIUM_PATH=/usr/bin/chromium npm test`.
 - `npm test` rebuilds the fixtures, then runs two tests: `tests/logic.test.mjs` (Node only, no browser) and `tests/e2e.mjs` (one browser run). The browser test blocks the network and logs every request. It checks that nothing leaves the page, that no original value reaches a download, that the match file fits the masked data, and that restore returns the real values.
 - Downloads and screenshots go to `tests/out/`, which git ignores.

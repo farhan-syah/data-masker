@@ -188,7 +188,9 @@ progress { width: 100%; height: 10px; accent-color: var(--primary); }
 dialog { border: 1px solid var(--border); border-radius: var(--radius); max-width: 560px; width: calc(100% - 32px); padding: 20px; color: var(--text); }
 dialog::backdrop { background: rgba(24, 24, 27, .55); }
 dialog h2 { color: var(--danger); }
-.help-body section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; max-width: 980px; }
+.help-body section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.help-body section > p, .help-body section > ul, .help-body section > ol { max-width: 90ch; }
+.stack > .card { margin-bottom: 16px; }
 .help-body li { margin: 3px 0; }
 footer { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: .84rem; }
 footer .wrap { padding-top: 10px; padding-bottom: 10px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -451,7 +453,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
 <section role="tabpanel" id="p-restore" aria-labelledby="tab-restore" hidden>
   <h2>Restore names</h2>
   <p class="lead">Change the codes in an AI answer, such as PERSON_001, back to the real names. This work happens on this computer only.</p>
-  <div class="cols-2">
+  <div class="stack">
     <div class="card">
       <h3>A. Match file</h3>
       <p class="help" id="key-in-h">The MATCH-FILE-….csv file you downloaded in step 3.</p>
@@ -575,7 +577,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   </section>
   <section>
     <h3>About this tool</h3>
-    <p>Data Masking Tool version __VERSION__. It runs entirely in your browser. It makes no network requests, and no data leaves this page.</p>
+    <p>Data Masking Tool __VERSION__. It runs entirely in your browser. It makes no network requests, and no data leaves this page.</p>
     <p>It includes SheetJS Community Edition 0.20.3, Apache License 2.0, to read and write Excel files.</p>
   </section>
 </section>
@@ -594,7 +596,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn" id="key-cancel">Cancel</button><button type="button" class="btn danger" id="key-confirm" disabled>Download match file</button></div>
 </dialog>
 
-<footer><div class="wrap"><span>Data Masking Tool v__VERSION__</span><span id="engine"></span></div></footer>
+<footer><div class="wrap"><span>Data Masking Tool __VERSION__</span><span id="engine"></span></div></footer>
 
 <!--
 SheetJS Community Edition 0.20.3 — https://sheetjs.com

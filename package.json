@@ -1,6 +1,6 @@
 {
   "name": "data-masker",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Mask personal data in CSV and Excel files in your browser. No data leaves the page.",
   "private": true,
   "license": "MIT",

@@ -35,9 +35,13 @@ npx playwright install chromium
 
 ## Releases
 
-1. Change `version` in `package.json`, run `npm run build`, and commit both `package.json` and `index.html`.
-2. Push a tag that matches, for example `v1.1.0`.
-3. The Release workflow runs the tests on Linux, macOS and Windows, checks that the tag matches `package.json` and that `index.html` is current, then publishes a GitHub Release with `index.html` and `SHA256SUMS`.
+The version comes from the git tag. Nothing in the repo holds it.
+
+1. Make sure `main` is green.
+2. Push a tag, for example `git tag v1.1.0 && git push origin v1.1.0`.
+3. The Release workflow runs the tests on Linux, macOS and Windows. It builds `index.html` with the tag as its version, publishes a GitHub Release with `index.html` and `SHA256SUMS`, and deploys that file to GitHub Pages.
+
+The `index.html` in `main` is a development build and says so in its footer. Build a stamped copy yourself with `DM_VERSION=1.1.0 python3 build.py`.
 
 ## Reporting problems
 
