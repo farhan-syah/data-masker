@@ -53,6 +53,23 @@
     return aoa.map(function (r) { return r.map(function (v) { return csvEscape(safe ? L.formulaSafe(v) : v); }).join(','); }).join('\r\n') + '\r\n';
   }
 
+  // A message that every user can see. Screen readers hear the same text through announce().
+  var toastTimer = null;
+  function toast(msg, isError) {
+    var t = $('#toast');
+    t.textContent = msg; t.className = 'toast' + (isError ? ' bad' : ''); t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, isError ? 6000 : 3500);
+    announce(msg);
+  }
+  // Shows a short label on a button, for example "Copied ✓", then puts the old label back.
+  function flash(btn, label) {
+    if (!btn) return;
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+    btn.textContent = label; btn.classList.add('done');
+    clearTimeout(btn._flash);
+    btn._flash = setTimeout(function () { btn.textContent = btn.dataset.label; btn.classList.remove('done'); }, 2000);
+  }
   function download(name, data, mime) {
     var blob = data instanceof Blob ? data : new Blob([data], { type: mime || 'application/octet-stream' });
     var url = URL.createObjectURL(blob);
@@ -60,9 +77,9 @@
     a.href = url; a.download = name; a.style.display = 'none';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
-    announce('Downloaded ' + name + '.');
+    toast('Downloaded ' + name);
   }
-  function copyText(text, okMsg) {
+  function copyText(text, okMsg, btn) {
     function fallback() {
       var ta = document.createElement('textarea');
       ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px';
@@ -70,10 +87,10 @@
       var ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       ta.remove();
-      announce(ok ? okMsg : 'Copy did not work. Select the text and press Ctrl+C.');
+      if (ok) { toast(okMsg); flash(btn, 'Copied ✓'); } else toast('Copy did not work. Select the text and press Ctrl+C.', true);
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { announce(okMsg); }, fallback);
+      navigator.clipboard.writeText(text).then(function () { toast(okMsg); flash(btn, 'Copied ✓'); }, fallback);
     } else fallback();
   }
 
@@ -701,7 +718,7 @@
       c.status = sug.status; c.strategy = sug.strategy; c.params = sug.params; c.outNameUser = '';
     });
     renderColumns(); bump();
-    announce('Every column is back to the suggested choice.');
+    toast('Every column is back to the suggested choice.');
   }
 
   // ---------- presets ----------
@@ -798,7 +815,7 @@
     $('#new-shift').addEventListener('click', function () {
       state.session.shiftDays = L.randomShiftDays(); rowShiftCache.clear();
       bump();
-      announce('The tool chose new random shifts. An older match file cannot move the dates back.');
+      toast('The tool chose new random shifts. An older match file cannot move the dates back.');
       $('#shift-info').textContent = 'The tool chose new random shifts. Download the masked data and the match file again.';
     });
   }
@@ -1027,7 +1044,7 @@
       renderRowsControls(); bump(); renderPreview();
     });
     $('#rows-n').addEventListener('change', renderRowsControls);
-    $('#resample').addEventListener('click', function () { state.sampleIdx = null; state.sampleKey = ''; bump(); renderPreview(); announce('The tool picked different random rows.'); });
+    $('#resample').addEventListener('click', function () { state.sampleIdx = null; state.sampleKey = ''; bump(); renderPreview(); toast('The tool picked different random rows.'); });
     $('#prev-orig').addEventListener('change', renderPreview);
     $('#dl-csv').addEventListener('click', function () {
       freshResult().then(function (res) {
@@ -1049,10 +1066,10 @@
     $('#copy-data').addEventListener('click', function () {
       freshResult().then(function (res) {
         noteData(res);
-        copyText(toCSV([res.header].concat(res.rows), true), 'Copied the masked data (' + fmtInt(res.rows.length) + ' rows) as CSV text.');
+        copyText(toCSV([res.header].concat(res.rows), true), 'Copied the masked data (' + fmtInt(res.rows.length) + ' rows) as CSV text.', $('#copy-data'));
       });
     });
-    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Copied the column names.'); });
+    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Copied the column names.', $('#copy-schema')); });
     $('#dl-schema').addEventListener('click', function () { download('column-names-' + stamp() + '.txt', '﻿' + schemaText(), 'text/plain;charset=utf-8'); });
     // The match file always belongs to the masked data the user last downloaded. Sequential codes depend
     // on every setting, so a match file made from other settings would point codes at the wrong people.
@@ -1179,18 +1196,19 @@
 
   // ---------- risk ----------
   function riskData() {
-    var personalAccepted = [], freeText = [], partialDates = [], weakPartial = [], review = [];
+    var personalAccepted = [], freeText = [], freeTextHidden = [], partialDates = [], weakPartial = [], review = [];
     state.cols.forEach(function (c) {
       if (c.status === 'hide') return;
       if (((c.personal || c.presetPII) || c.freeText) && c.status === 'accept') personalAccepted.push(c);
-      if (c.freeText) freeText.push(c);
+      // Free text that the tool already masks is only a note. Free text masked another way needs a look.
+      if (c.freeText && c.status === 'mask') (c.strategy === 'scrub' ? freeTextHidden : freeText).push(c);
       if (c.review && c.status === 'accept') review.push(c);
       if (c.status === 'mask' && c.strategy === 'partial') {
         if (L.partialRevealsDate(firstSanitized(c), c, parseInt(c.params.keepN, 10) || 0, c.params.side, state.sanitise.dateOrder)) partialDates.push(c);
       }
       if (c.status === 'mask' && c.strategy === 'gen' && c.params.genMode === 'firstn' && c.kind === 'name' && (parseInt(c.params.firstN, 10) || 0) > 2) weakPartial.push(c);
     });
-    return { personalAccepted: personalAccepted, freeText: freeText, partialDates: partialDates, weakPartial: weakPartial, review: review };
+    return { personalAccepted: personalAccepted, freeText: freeText, freeTextHidden: freeTextHidden, partialDates: partialDates, weakPartial: weakPartial, review: review };
   }
   function renderRiskSummary() {
     var el = $('#risk-summary');
@@ -1199,7 +1217,7 @@
     var parts = [];
     if (red) parts.push('<b class="err-t">' + red + (red === 1 ? ' red item' : ' red items') + '</b>');
     if (amber) parts.push('<b class="warn-t">' + amber + (amber === 1 ? ' yellow item' : ' yellow items') + ' to read yourself</b>');
-    el.innerHTML = '<p class="msg ' + (red ? 'err' : (amber ? 'warn' : 'ok')) + '">Risk check: ' + (parts.length ? parts.join(' and ') : 'no problems found so far') +
+    el.innerHTML = '<p class="msg ' + (red ? 'err' : (amber ? 'warn' : 'ok')) + '">Risk check: ' + (parts.length ? parts.join(' and ') : 'no problems found') +
       '. <button type="button" class="link" data-goto="p-risk">Open Risk check</button></p>';
     $('[data-goto]', el).addEventListener('click', function () { showTab('p-risk', true); });
     var tab = $('#tab-risk');
@@ -1220,9 +1238,10 @@
   }
   function riskReadHtml(d) {
     var h = '<section class="card"><h3>Text to read yourself</h3>';
-    h += d.freeText.length ? '<p class="msg warn">Read these columns before you share the file: ' + colList(d.freeText) + '. Free text often has names, phone numbers or private details. The tool misses nicknames and other spellings.</p>'
-      : '<p class="msg ok">No free-text columns found.</p>';
+    if (d.freeText.length) h += '<p class="msg warn">Read these columns before you share the file: ' + colList(d.freeText) + '. Free text often has names, phone numbers or private details.</p>';
     if (d.review.length) h += '<p class="msg warn">The tool cannot tell what is in these columns, or most of their values are different: ' + colList(d.review) + '. You chose Keep. Read them yourself. Names, IDs and other private values can hide there.</p>';
+    if (d.freeTextHidden.length) h += '<p class="msg info">The tool hides names, IDs, emails and phone numbers in ' + colList(d.freeTextHidden) + '. It can miss nicknames and other spellings. Look at the preview before you share.</p>';
+    if (!d.freeText.length && !d.review.length && !d.freeTextHidden.length) h += '<p class="msg ok">No free-text columns found.</p>';
     return h + '</section>';
   }
   function renderRisk() {
@@ -1231,7 +1250,7 @@
     var d = riskData(), v = state.validation;
     var h = riskWarningsHtml(d) + riskReadHtml(d);
     if (v.missingRequired.length) h += '<section class="card"><h3>Settings file</h3><p class="msg warn">These columns are in the settings file but not in this file: ' + esc(v.missingRequired.join(', ')) + '. Check that you chose the right file.</p></section>';
-    h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg warn">Masking does not change how your organisation classifies the file. Follow its rules before you share it.</p></section>';
+    h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg info">Masking does not change how your organisation classifies the file. Follow its rules before you share it.</p></section>';
     box.innerHTML = h;
   }
 
@@ -1283,7 +1302,7 @@
       });
     });
     $('#restore-btn').addEventListener('click', doRestore);
-    $('#restore-copy').addEventListener('click', function () { copyText($('#restore-output').value, 'Copied the restored text.'); });
+    $('#restore-copy').addEventListener('click', function () { copyText($('#restore-output').value, 'Copied the restored text.', $('#restore-copy')); });
     $('#restore-dl-txt').addEventListener('click', function () { download('restored-text-' + stamp() + '.txt', '﻿' + $('#restore-output').value, 'text/plain;charset=utf-8'); });
     $('#restore-dl-csv').addEventListener('click', function () {
       if (restore.out) download(restoreBase() + '-' + stamp() + '.csv', '﻿' + toCSV(restore.out, true), 'text/csv;charset=utf-8');

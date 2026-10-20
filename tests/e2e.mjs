@@ -106,6 +106,10 @@ check('card examples show the same codes as the download', exNames.length === 3 
 
 const xlsx1 = await download(() => page.click('#dl-xlsx'), 'one');
 const schema = await download(() => page.click('#dl-schema'), 'one');
+check('a download shows a visible message', /Downloaded/.test(await page.textContent('#toast')) && await page.isVisible('#toast'));
+await page.click('#copy-schema');
+await page.waitForFunction(() => !document.querySelector('#toast').hidden && /Copied|Copy did not work/.test(document.querySelector('#toast').textContent));
+check('a copy shows a visible message', true);
 await tab('p-columns');
 await page.evaluate(() => { document.querySelector('details.card').open = true; });
 const settings = await download(() => page.click('#preset-save'), 'one');
