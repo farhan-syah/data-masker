@@ -222,13 +222,6 @@
     x.setUTCDate(x.getUTCDate() + days);
     return { y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate() };
   }
-  function ageAt(dt, now) {
-    var ty = now.getFullYear(), tm = now.getMonth() + 1, td = now.getDate();
-    var a = ty - dt.y;
-    if (tm < dt.m || (tm === dt.m && td < dt.d)) a--;
-    return a;
-  }
-
   // A header cell that is really a value: an email, an ID, a phone number or a date.
   function looksLikeData(v) {
     var t = String(v == null ? '' : v).trim();
@@ -375,7 +368,8 @@
     res.sensitive = (hint.sensitive || (R(c.icd) >= 0.8 && R(c.icdDot) >= 0.3)) && (kind === 'category' || kind === 'text');
     res.age = hint.age && kind === 'number';
     res.serialDates = kind === 'date' && c.serial > 0;
-    res.personal = !!PERSONAL_KINDS[kind] || (kind === 'date' && hint.birth) || res.sensitive;
+    // Personal data here means a direct identifier. Dates, money and private topics are not auto-masked.
+    res.personal = !!PERSONAL_KINDS[kind];
     res.freeText = kind === 'text';
     return res;
   }
@@ -398,21 +392,19 @@
     } else if (k === 'address') {
       r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'region';
     } else if (k === 'date') {
-      r.status = 'mask';
-      if (cls.birth) { r.strategy = 'gen'; p.genMode = 'ageband'; p.width = 5; }
-      else r.strategy = 'shift';
+      // Dates stay as they are. If the user chooses Mask, the dates move and stay dates.
+      r.strategy = 'shift';
     } else if (k === 'money') {
-      r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'band'; p.width = 1000;
+      // Money stays as it is. If the user chooses Mask, the number stays a number with a small random change.
+      r.strategy = 'num'; p.numMode = 'noise'; p.noisePct = 5;
     } else if (k === 'text') {
       r.status = 'mask'; r.strategy = 'scrub';
     } else if (k === 'url') {
       r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'urlhost';
-    } else if (cls.age) {
-      r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'band'; p.width = 5;
     } else if (k === 'location') {
       r.status = 'mask'; r.strategy = 'num'; p.numMode = 'round'; p.roundTo = 0.1;
     } else if (cls.sensitive) {
-      r.status = 'mask'; r.strategy = 'pseudo'; p.prefix = cleanPrefix(normalizeColumnName(header).toUpperCase());
+      r.strategy = 'pseudo'; p.prefix = cleanPrefix(normalizeColumnName(header).toUpperCase());
     } else if (k === 'empty') {
       r.status = 'hide';
     }
@@ -422,7 +414,7 @@
   function defaultParams() {
     return {
       prefix: 'CODE', tokenStyle: 'seq', keepN: 4, side: 'last', keepSep: true,
-      genMode: 'year', width: 5, firstN: 3, parts: 1, numMode: 'round', roundTo: 100, noisePct: 5, fixedText: '[REMOVED]'
+      genMode: 'firstn', firstN: 3, parts: 1, numMode: 'round', roundTo: 100, noisePct: 5, fixedText: '[REMOVED]'
     };
   }
 
@@ -644,25 +636,6 @@
         return partialMask(s, Math.max(0, parseInt(p.keepN, 10) || 0), p.side, p.keepSep);
       case 'gen': {
         var mode = p.genMode;
-        if (mode === 'year' || mode === 'ageband') {
-          var d = parseDate(s, col.serialDates, ctx.session.now, ctx.session.dateOrder);
-          if (!d) return markUnparsed(ctx, col);
-          if (mode === 'year') return String(d.y);
-          var w = Math.max(1, parseInt(p.width, 10) || 5);
-          // Thai dates use the Buddhist era (year + 543).
-          var age = ageAt({ y: d.y > ctx.session.now.getFullYear() + 50 ? d.y - 543 : d.y, m: d.m, d: d.d }, ctx.session.now);
-          if (w === 1) return String(age);
-          var lo = Math.floor(age / w) * w;
-          return lo + '-' + (lo + w - 1);
-        }
-        if (mode === 'band') {
-          var nv = parseNumber(s);
-          if (!nv) return markUnparsed(ctx, col);
-          var bw = Math.abs(parseFloat(p.width)) || 1000;
-          var blo = Math.floor(nv.v / bw) * bw;
-          var intBand = Number.isInteger(bw) && Number.isInteger(blo);
-          return intBand ? (blo + '-' + (blo + bw - 1)) : (blo.toFixed(2) + '-' + (blo + bw).toFixed(2));
-        }
         if (mode === 'urlhost') {
           var um = /^(?:[a-z][a-z0-9+.-]*:\/\/)?([^\/?#\s:]+)/i.exec(s);
           return um ? um[1].toLowerCase() : markUnparsed(ctx, col);

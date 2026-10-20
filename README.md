@@ -16,7 +16,7 @@ The page needs no install and no account. It works without internet. A Content-S
 
 ## Read this first
 
-The tool suggests. You decide. Check every column before you share anything.
+The tool masks direct identifiers by default: names, IDs, emails, phone numbers, addresses and free-text notes. It keeps everything else, such as dates, salaries and categories, so charts and sums still work. You decide. Check every column before you share anything.
 
 | Limit | What you must do |
 |---|---|
@@ -50,13 +50,15 @@ Share the least data you can. Column names only is safest. A masked sample is ne
 
 ## Masking methods
 
+Masking keeps the format. A number stays a number, a date stays a date, and text stays text. Each column offers only methods that keep its format.
+
 | Method | What it does |
 |---|---|
 | Replace with a code | One code for each value, such as `PERSON_001`. The same value gets the same code. Numbers are in random order. Codes ignore capital letters. |
 | Hide part of the value | Show a few characters. The rest become `*`. |
-| Replace with a group or range | Date to year or age group. Number to range. Text to first letters. Address to its last part, such as the country. |
-| Move dates | Each row moves by its own random number of days. Dates in one row stay the same distance apart. |
-| Round or change numbers | Round, or add a small random change. |
+| Shorten the text | Keep the first letters, the last part of an address (such as the country), or the website of a web address. |
+| Move dates | The value stays a date. Each row moves by its own random number of days. Dates in one row stay the same distance apart. |
+| Round or change numbers | The value stays a number. Round it, or add a small random change. |
 | Replace with fixed text | Default `[REMOVED]`. |
 | Hide names and numbers in notes | Names from name columns become codes. IDs, emails and phone numbers become `[ID NO]`, `[EMAIL]` and `[PHONE]`. |
 
@@ -67,16 +69,16 @@ Share the least data you can. Column names only is safest. A masked sample is ne
 | Person name | `name`, `full name`, `surname`. Two or more capitalised words. |
 | National ID | `national id`, `SSN`, `passport`. Values like `123-45-6789`. |
 | Reference ID | `employee id`, `customer no`, `patient code`, `username`, `account`. Payment card numbers and IP addresses. Plain digit numbers of one length. |
-| Age | `age`, `edad`, `年龄`. The tool groups ages in 5-year steps. |
+| Age | `age`, `edad`, `年龄`. The tool keeps ages as numbers. |
 | Email | `email`. Values with `@`. |
 | Phone | `phone`, `mobile`. 7 to 15 digits with `+`, brackets, spaces, dots or dashes. |
 | Address | `address`, `street`, `zip`. A street word or a postcode. Japanese, Chinese and Korean addresses keep the first area only. |
-| Date | `date`, `dob`, `birth`. `25/12/2004`, `12/25/2004`, `2004-12-25`, `25 Dec 2004`, `12 janvier 1991`, `1991年9月12日`. |
-| Money | `salary`, `amount`, `price`. `$1,250.00`, `EUR 900.50`, `1.234,56`. |
+| Date | `date`, `dob`, `birth`. The tool keeps dates. If you choose Mask, the dates move by random days and stay dates. `25/12/2004`, `12/25/2004`, `2004-12-25`, `25 Dec 2004`, `12 janvier 1991`, `1991年9月12日`. |
+| Money | `salary`, `amount`, `price`. `$1,250.00`, `EUR 900.50`, `1.234,56`. The tool keeps money as it is. If you choose Mask, it adds a random change of up to 5%, so totals and charts stay almost the same. |
 | Web address | `url`, `website`. The tool keeps the website and removes the path. |
 | Free text | `notes`, `comments`, `message`. Long text, or short text with many words. |
 | Location | `lat`, `lng`, `gps`. The tool rounds coordinates to about 11 km. |
-| Private category | `diagnosis`, `religion`, `ethnicity`. The tool replaces values with codes. |
+| Private category | `diagnosis`, `religion`, `ethnicity`. The tool keeps the values and adds a **Private topic** label. |
 
 Other languages work when the values match these patterns. The tool puts a **Check this column** label on text it cannot classify. This includes Chinese and Arabic text, and columns where most values are different.
 
@@ -107,7 +109,7 @@ Format: a CSV with the header `code,original_value,column`. Rows that start with
 - Restore moves shifted dates back only in CSV and Excel files. In row mode, the file must keep the anchor column or the original row order.
 - A first name found alone in a note becomes `[NAME]`. Restore cannot return it.
 - A value that cannot be read becomes `[?]`. The page counts these.
-- Thai dates in the Buddhist era (year + 543) give correct age groups. Other calendars, such as Hijri, are not converted.
+- The tool reads dates in the Gregorian calendar only. A Thai Buddhist-era year (such as 2534) or a Hijri date is not converted.
 - The tool does not calculate Excel formulas. It reads the saved values. Password-protected workbooks do not open.
 - A masked or restored value that a spreadsheet could run as a formula gets a leading apostrophe. That means a value starting with `=` or `@`, or with `+` or `-` before a letter.
 - Excel files from this tool have no cell styles.

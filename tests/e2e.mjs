@@ -93,11 +93,12 @@ check('data tabs are off before a file is open', await page.$eval('#tab-columns'
 await load(SAMPLES + 'staff-list-sample.csv');
 const kinds = await page.evaluate(() => Object.fromEntries(window.__dm.state.cols.map(c => [c.header, c.kind + '/' + c.status + '/' + c.strategy])));
 check('suggestions fit the column names and values', kinds['Full Name'] === 'name/mask/pseudo' && kinds['National ID'] === 'national_id/mask/pseudo' &&
-  kinds['Phone'] === 'phone/mask/partial' && kinds['Address'] === 'address/mask/gen' && kinds['Date of Birth'] === 'date/mask/gen' &&
-  kinds['Salary'] === 'money/mask/gen' && kinds['Notes'] === 'text/mask/scrub' && kinds['Department'] === 'category/accept/pseudo', JSON.stringify(kinds));
+  kinds['Phone'] === 'phone/mask/partial' && kinds['Address'] === 'address/mask/gen' && kinds['Date of Birth'] === 'date/accept/shift' &&
+  kinds['Hire Date'] === 'date/accept/shift' && kinds['Salary'] === 'money/accept/num' && kinds['Notes'] === 'text/mask/scrub' && kinds['Department'] === 'category/accept/pseudo', JSON.stringify(kinds));
 check('month-first dates are detected from the values', await page.evaluate(() => window.__dm.state.sanitise.dateOrder) === 'mdy');
 
 await tab('p-columns');
+await setStatus('Salary', 'mask'); await setStatus('Hire Date', 'mask'); await setStatus('Date of Birth', 'mask');
 const exNames = await page.$$eval('#ex-1 .ex-list li code:last-child', els => els.map(e => e.textContent));
 await generate();
 const csv1 = await download(() => page.click('#dl-csv'), 'one');
@@ -120,6 +121,12 @@ const leaks = [];
 orig.forEach(r => ['Full Name', 'National ID', 'Email', 'Phone', 'Employee ID'].forEach(k => { if (everything.includes(r[k])) leaks.push(r[k]); }));
 check('no original name, ID, email or phone in the CSV, XLSX, column names or settings', leaks.length === 0, leaks.slice(0, 4).join(' | '));
 check('column names export shows no real value for a kept column', !orig.some(r => fs.readFileSync(schema, 'utf8').includes(r['Job Title']) || fs.readFileSync(schema, 'utf8').includes(r['Notes']) && r['Notes']));
+const salaryOk = masked1.every((r, i) => /^\d+(\.\d+)?$/.test(r['Salary']) && Math.abs(+r['Salary'] / +orig[i]['Salary'] - 1) <= 0.0501);
+const dobOk = masked1.every(r => /^\d\d\/\d\d\/\d{4}$/.test(r['Date of Birth']));
+const meanOf = a => a.reduce((x, y) => x + y, 0) / a.length;
+const meanShift = Math.abs(meanOf(masked1.map(r => +r['Salary'])) / meanOf(orig.map(r => +r['Salary'])) - 1);
+check('salary stays a number within 5 percent, and the average stays close, so charts still work', salaryOk && meanShift < 0.03, meanShift);
+check('a masked date of birth is still a date', dobOk, masked1.slice(0, 3).map(r => r['Date of Birth']).join());
 check('codes are one to one', new Set(masked1.map(r => r['Full Name'])).size === 60 && /^PERSON_\d{3}$/.test(masked1[0]['Full Name']));
 check('the file names hold no source name', /masked-data-[A-Z0-9]{4}-\d{8}-\d{4}\.csv$/.test(csv1) && !/staff-list/.test(csv1));
 
@@ -151,8 +158,8 @@ await page.check('input[name=restore-src][value=file]');
 await page.setInputFiles('#restore-file', csv1); await page.waitForSelector('#restore-file-msg.ok');
 await page.click('#restore-btn'); await page.waitForSelector('#restore-table-out:not([hidden])');
 const restored = toObjs(csvOf(await download(() => page.click('#restore-dl-csv'), 'restored')));
-const cols = ['Full Name', 'National ID', 'Employee ID', 'Email', 'Hire Date'];
-check('restore returns names, IDs, emails and shifted hire dates exactly', restored.every((r, i) => cols.every(c => r[c] === orig[i][c])));
+const cols = ['Full Name', 'National ID', 'Employee ID', 'Email', 'Date of Birth', 'Hire Date'];
+check('restore returns names, IDs, emails and shifted dates exactly', restored.every((r, i) => cols.every(c => r[c] === orig[i][c])));
 const rows = csvOf(csv1); const rev = [rows[0], ...rows.slice(1).reverse()];
 const revFile = OUT + '/reversed.csv';
 fs.writeFileSync(revFile, '﻿' + rev.map(r => r.map(v => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v).join(',')).join('\r\n'));

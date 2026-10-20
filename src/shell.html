@@ -511,7 +511,8 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <h2>Help</h2>
   <section>
     <h3>What this tool does</h3>
-    <p>It replaces personal data in a spreadsheet with codes, ranges or blanks. You can then share the copy.</p>
+    <p>It replaces direct identifiers in a spreadsheet with codes. These are names, IDs, emails, phone numbers, addresses and names in notes. You can then share the copy.</p>
+    <p>It keeps dates, salaries and other values as they are, so charts and sums still work. You can choose Mask on any column. Masking never changes the type: a number stays a number, a date stays a date, and text stays text.</p>
     <p>Everything happens in your browser. The tool never sends your file anywhere.</p>
   </section>
   <section>
@@ -544,11 +545,11 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
       <tbody>
         <tr><td>Replace with a code</td><td>Names, IDs and emails that you want to restore later. The same value always gets the same code.</td><td>Maria Garcia → PERSON_001</td></tr>
         <tr><td>Hide part of the value</td><td>Phone and reference numbers.</td><td>+1 555 010 4321 → ** *** *** **21</td></tr>
-        <tr><td>Replace with a group or range</td><td>Dates of birth, salaries and addresses.</td><td>01/23/1977 → 45-49<br>57080.84 → 57000-57999<br>12 Oak Street, Springfield, USA → USA</td></tr>
-        <tr><td>Move dates</td><td>Dates of events. Each row moves by its own number of days.</td><td>12/25/2004 → 03/12/2003</td></tr>
-        <tr><td>Round or change numbers</td><td>Numbers that need only a rough value.</td><td>5708.84 → 5700</td></tr>
-        <tr><td>Replace with fixed text</td><td>Columns that must stay but have no useful content.</td><td>any value → [REMOVED]</td></tr>
-        <tr><td>Hide names and numbers in notes</td><td>Free text such as notes and comments.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
+        <tr><td>Shorten the text</td><td>Addresses and web addresses. Keep the first letters, the last part of an address, or the website.</td><td>12 Oak Street, Springfield, USA → USA<br>https://shop.example/u/maria → shop.example</td></tr>
+        <tr><td>Move dates</td><td>Dates of birth and other dates. Each row moves by its own number of days. A date stays a date.</td><td>12/25/2004 → 03/12/2003</td></tr>
+        <tr><td>Round or change numbers</td><td>Salaries and other numbers. A number stays a number. A small random change keeps totals, averages and charts almost the same.</td><td>4120.00 → 4283.09 (within 5%)<br>5708.84 → 5700</td></tr>
+        <tr><td>Replace with fixed text</td><td>Text columns that must stay but have no useful content.</td><td>any value → [REMOVED]</td></tr>
+        <tr><td>Hide names and numbers in notes</td><td>Notes, comments and other free text.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
       </tbody>
     </table>
   </section>
@@ -583,7 +584,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
     <ul>
       <li>The suggestions can be wrong. Check every column.</li>
       <li>The tool finds names in notes only when the name is in a name column. It misses nicknames and other spellings.</li>
-      <li>A mix of details, such as job level, team and age group, can still point to one person. Before you share, count how many people have each mix. Merge groups that have fewer than 5 people.</li>
+      <li>A mix of details, such as job level, team and birth date, can still point to one person. Before you share, count how many people have each mix. Merge groups that have fewer than 5 people.</li>
       <li>Month names work in English, French, Spanish, Portuguese, Italian, German, Dutch and Turkish. For other languages, use number dates.</li>
       <li>If letters look wrong, choose another text encoding in step 1.</li>
       <li>The tool puts a “Check this column” label on text it cannot classify. This includes Chinese and Arabic text, and columns where most values are different. Read those columns yourself.</li>

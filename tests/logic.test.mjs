@@ -66,7 +66,7 @@ const people = Array.from({ length: 30 }, (_, i) => ['Maria Garcia', 'Liam Murph
 const suggestFor = (h, vals) => { const n = L.normalizeColumnName(h); const c = L.classifyColumn(h, n, vals); return { c, s: L.suggest(c, h) }; };
 check('names under a role header are masked, even when repeated', suggestFor('Patient', people).s.status === 'mask' && suggestFor('Patient', people).c.kind === 'name');
 check('a repeated name-like column without a role header is flagged', suggestFor('Owner2', people.map(x => x)).c.review === true || suggestFor('Misc', people).c.review === true);
-check('a private category such as Diagnosis is masked', suggestFor('Diagnosis', many(30).map(i => ['Asthma', 'Diabetes'][i % 2])).s.status === 'mask');
+check('a private category such as Diagnosis is kept but labelled, and Mask uses codes', (() => { const r = suggestFor('Diagnosis', many(30).map(i => ['Asthma', 'Diabetes'][i % 2])); return r.s.status === 'accept' && r.c.sensitive === true && r.s.strategy === 'pseudo' && !r.c.personal; })());
 check('coordinates are rounded by default', (() => { const r = suggestFor('Lat', many(30).map(i => (51.5 + i / 1000).toFixed(5))); return r.c.kind === 'location' && r.s.strategy === 'num' && r.s.params.roundTo === 0.1; })());
 check('plain digit numbers of one length are treated as IDs', suggestFor('Contact No', many(30).map(i => String(13800000000 + i * 31))).c.kind === 'id');
 check('short free text under a message header is free text', suggestFor('Gift Message', many(30).map(i => 'Happy birthday Maria number ' + i)).c.kind === 'text');
@@ -79,22 +79,29 @@ check('headers in French, Spanish, German, Italian and Dutch', hk('Prénom') ===
 // Dates in other languages
 check('month names in French, Spanish, German and Turkish', ['12 janvier 1991', '12 de enero de 1991', '12. Januar 1991'.replace('. ', ' '), '12 Ocak 1991'].every(v => L.parseDate(v) && L.parseDate(v).m === 1 && L.parseDate(v).d === 12));
 check('Chinese and Korean dates keep their layout after a shift', (() => { const d = L.parseDate('1991年9月12日'); const k = L.parseDate('1991년 9월 12일'); return d && k && L.formatDate(L.addDays(d, -12), d.fmt) === '1991年8月31日' && L.formatDate(k, k.fmt) === '1991년 9월 12일'; })());
-check('a Buddhist era birth year gives a sensible age group', (() => {
-  const col = { kind: 'date', strategy: 'gen', params: { ...L.defaultParams(), genMode: 'ageband', width: 5 }, outName: 'd' };
-  const ctx = L.newContext({ ...session, now: new Date(2026, 5, 1) });
-  return L.maskValue('12/09/2534', col, ctx, 0) === '30-34';
-})());
 
 // Web addresses, medical codes, age, addresses that start with the largest area
 check('web addresses keep the website only', (() => { const col = { kind: 'url', strategy: 'gen', params: { ...L.defaultParams(), genMode: 'urlhost' }, outName: 'u' }; return L.maskValue('https://Shop.example/u/Maria.Garcia?id=7', col, L.newContext(session), 0) === 'shop.example'; })());
 check('a web address in a note is hidden', !scrub('See https://shop.example/u/maria.garcia now', []).includes('maria'));
 check('a column of web addresses is classified', suggestFor('Page', many(10).map(i => 'https://a.example/p/' + i)).s.params.genMode === 'urlhost');
-check('medical codes are masked by value, even under a plain header', suggestFor('Code', many(30).map(i => ['E11.9', 'I10', 'J45.9', 'G43.9'][i % 4])).s.status === 'mask');
-check('an age column becomes age groups', (() => { const r = suggestFor('Edad', many(30).map(i => String(20 + i))); return r.s.strategy === 'gen' && r.s.params.genMode === 'band' && r.s.params.width === 5; })());
+check('medical codes are labelled by value, even under a plain header', suggestFor('Code', many(30).map(i => ['E11.9', 'I10', 'J45.9', 'G43.9'][i % 4])).c.sensitive === true);
+check('dates and money are kept by default, and Mask keeps their format', (() => { const d = suggestFor('Hire Date', many(30).map(i => `${1 + i % 27}/05/2010`)); const b = suggestFor('Date of Birth', many(30).map(i => `${1 + i % 27}/05/19${60 + i}`)); const m = suggestFor('Salary', many(30).map(i => (3000 + i * 37).toFixed(2))); return d.s.status === 'accept' && d.s.strategy === 'shift' && b.s.status === 'accept' && b.s.strategy === 'shift' && !b.c.personal && m.s.status === 'accept' && m.s.strategy === 'num'; })());
+check('only direct identifiers are masked by default', suggestFor('Email', many(10).map(i => `a${i}@x.example`)).s.status === 'mask' && suggestFor('Phone', many(10).map(i => `+1 555 010 ${1000 + i}`)).s.status === 'mask');
+check('an age column stays a number, so charts keep working', suggestFor('Edad', many(30).map(i => String(20 + i))).s.status === 'accept');
+check('money, when masked, gets a small random change and stays a number', (() => { const r = suggestFor('Salary', many(30).map(i => (3000 + i * 37).toFixed(2))); const col = { kind: 'money', strategy: r.s.strategy, params: r.s.params, outName: 's', idx: 0 }; const ctx = L.newContext({ ...session, noise: () => 0.8 }); const v = L.maskValue('4000.00', col, ctx, 0); return r.s.strategy === 'num' && r.s.params.numMode === 'noise' && /^\d+\.\d{2}$/.test(v) && Math.abs(+v / 4000 - 1) <= 0.05; })());
 check('addresses in Japanese, Chinese and Korean keep the first area only', (() => {
   const col = { kind: 'address', strategy: 'gen', params: { ...L.defaultParams(), genMode: 'region' }, outName: 'a' };
   const m = v => L.maskValue(v, col, L.newContext(session), 0);
   return m('東京都千代田区丸の内1-1-1') === '東京都' && m('广东省深圳市南山区科技园') === '广东省' && m('서울시 강남구 테헤란로 1') === '서울시';
+})());
+
+// Format is kept: a number stays a number and a date stays a date
+check('masking never changes the format', (() => {
+  const num = { kind: 'number', strategy: 'num', params: { ...L.defaultParams(), numMode: 'noise', noisePct: 5 }, outName: 'n', idx: 0 };
+  const n = L.maskValue('1250.50', num, L.newContext({ ...session, noise: () => 0.5 }), 0);
+  const dt = { kind: 'date', strategy: 'shift', params: L.defaultParams(), outName: 'd' };
+  const d = L.maskValue('12/25/2004', dt, L.newContext({ ...session, dateOrder: 'mdy', shiftMode: 'file', shiftDays: -10 }), 0);
+  return /^\d+(\.\d+)?$/.test(n) && /^\d\d\/\d\d\/\d{4}$/.test(d);
 })());
 
 // Address

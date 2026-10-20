@@ -156,18 +156,25 @@
   var STRATEGIES = [
     ['pseudo', 'Replace with a code', 'Each name or number becomes a code such as PERSON_001. The same value always gets the same code.'],
     ['partial', 'Hide part of the value', 'Show a few letters or digits. The rest become *.'],
-    ['gen', 'Replace with a group or range', 'Replace the exact value with a group: a year, an age group, a number range, first letters or the end of an address.'],
+    ['gen', 'Shorten the text', 'Keep only the first letters, the last part of an address, or the website of a web address.'],
     ['shift', 'Move dates', 'Move each date by a random number of days.'],
-    ['num', 'Round or change numbers', 'Round each number, or change it by a small random amount.'],
+    ['num', 'Round or change numbers', 'Keep a number, but round it or change it by a small random amount. Charts and sums still work.'],
     ['fixed', 'Replace with fixed text', 'Every filled cell gets the same text. Empty cells stay empty.'],
     ['scrub', 'Hide names and numbers in notes', 'Hide names, IDs, emails and phone numbers in free text. Read the rest of the text yourself.']
   ];
   var STRAT_LABEL = {}; var STRAT_HELP = {};
   STRATEGIES.forEach(function (s) { STRAT_LABEL[s[0]] = s[1]; STRAT_HELP[s[0]] = s[2]; });
   var GEN_MODES = [
-    ['year', 'Year only (for dates)'], ['ageband', 'Age group (for dates)'],
-    ['band', 'Number range'], ['firstn', 'First letters (for text)'], ['region', 'Last part of an address (for example the country)'], ['urlhost', 'Website only, without the path (for web addresses)']
+    ['firstn', 'First letters'], ['region', 'Last part of an address (for example the country)'], ['urlhost', 'Website only, without the path']
   ];
+  // Each method keeps the format of the column: numbers stay numbers, dates stay dates, text stays text.
+  var NUMBER_KINDS = { number: 1, money: 1, location: 1 };
+  function allowedStrategies(c) {
+    if (c.kind === 'date') return ['shift'];
+    if (NUMBER_KINDS[c.kind]) return ['num'];
+    return ['pseudo', 'partial', 'gen', 'fixed', 'scrub'];
+  }
+
 
   function bump() {
     state.version++;
@@ -354,7 +361,7 @@
         idx: i, header: hd, norm: norm, kind: cls.kind, birth: cls.birth, personal: cls.personal, freeText: cls.freeText,
         serialDates: cls.serialDates, info: cls.info, status: sug.status, strategy: sug.strategy,
         params: sug.params, outNameUser: '', outName: hd, samples: samples, sampleRows: sampleRows, presetPII: false,
-        review: cls.review
+        review: cls.review, sensitive: cls.sensitive
       };
     });
     state.sanitise.dateOrder = detectDateOrder();
@@ -503,6 +510,7 @@
     var b = [];
     if (c.personal || c.presetPII) b.push('<span class="badge b-danger">Personal data</span>');
     if (c.freeText) b.push('<span class="badge b-warn">Free text: read it yourself</span>');
+    if (c.sensitive) b.push('<span class="badge b-warn">Private topic</span>');
     if (c.review) b.push('<span class="badge b-warn">Check this column</span>');
     if (c.serialDates) b.push('<span class="badge">Dates stored as Excel numbers</span>');
     return b.join(' ');
@@ -561,9 +569,7 @@
         }
         break;
       case 'gen':
-        h += selField(c, 'genMode', 'Group by', '', GEN_MODES);
-        if (p.genMode === 'ageband') h += numField(c, 'width', 'Years in each age group', 'Ages are worked out from today.', 1, 1);
-        if (p.genMode === 'band') h += numField(c, 'width', 'Size of each range', '', 1, 'any');
+        h += selField(c, 'genMode', 'Keep', '', GEN_MODES);
         if (p.genMode === 'firstn') h += numField(c, 'firstN', 'How many letters', '', 0, 1);
         if (p.genMode === 'region') h += numField(c, 'parts', 'How many address parts to keep', 'Parts are separated by commas. Parts with digits, such as a postcode, are removed.', 1, 1);
         break;
@@ -639,7 +645,7 @@
     if (st === 'mask') {
       var sid = 'f-' + i + '-strategy';
       h += '<div class="field"><label for="' + sid + '">How to mask</label><select id="' + sid + '" data-strategy aria-describedby="' + sid + '-h" title="' + esc(STRAT_HELP[c.strategy]) + '">' +
-        STRATEGIES.map(function (s) { return '<option value="' + s[0] + '"' + (c.strategy === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
+        STRATEGIES.filter(function (s) { return allowedStrategies(c).indexOf(s[0]) >= 0 || c.strategy === s[0]; }).map(function (s) { return '<option value="' + s[0] + '"' + (c.strategy === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
         '</select><span class="sr-only" id="' + sid + '-h">' + esc(STRAT_HELP[c.strategy]) + '</span></div>';
       h += '<div class="params">' + paramsHtml(c) + '</div>';
     } else if (st === 'accept') {
@@ -686,9 +692,7 @@
     if (sel) sel.addEventListener('change', function () {
       c.strategy = sel.value;
       if (c.strategy === 'gen') {
-        if (c.kind === 'date') c.params.genMode = c.birth ? 'ageband' : 'year';
-        else if (c.kind === 'money' || c.kind === 'number') { c.params.genMode = 'band'; if (!c.params.width || c.params.width < 10) c.params.width = 1000; }
-        else if (c.kind === 'address') c.params.genMode = 'region';
+        if (c.kind === 'address') c.params.genMode = 'region';
         else if (c.kind === 'url') c.params.genMode = 'urlhost';
         else c.params.genMode = 'firstn';
       }
@@ -700,8 +704,6 @@
       var ev = inp.tagName === 'SELECT' || inp.type === 'checkbox' ? 'change' : 'input';
       inp.addEventListener(ev, function () {
         c.params[key] = inp.type === 'checkbox' ? inp.checked : inp.value;
-        if (key === 'genMode' && inp.value === 'ageband' && (+c.params.width < 1 || +c.params.width > 50)) c.params.width = 5;
-        if (key === 'genMode' && inp.value === 'band' && +c.params.width < 10) c.params.width = 1000;
         if (inp.tagName === 'SELECT' || inp.type === 'checkbox' || key === 'keepN') rerenderCard(c);
         else updateExamples();
         bump();
@@ -1141,7 +1143,7 @@
     switch (c.strategy) {
       case 'pseudo': return 'Replace with code (' + L.cleanPrefix(p.prefix) + '_…)';
       case 'partial': return 'Hide part (keep ' + (parseInt(p.keepN, 10) || 0) + ' characters at the ' + (p.side === 'first' ? 'start' : 'end') + ')';
-      case 'gen': return 'Change to a range or group (' + ({ year: 'year', ageband: p.width + '-year age group', band: 'range of ' + p.width, firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
+      case 'gen': return 'Shorten the text (' + ({ firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
       case 'shift': return state.session.shiftMode === 'file' ? 'Shift dates (one shift for the file)' : 'Shift dates (a different shift for each row)';
       case 'num': return p.numMode === 'noise' ? 'Round or adjust numbers (random change ±' + p.noisePct + '%)' : 'Round or adjust numbers (round to ' + p.roundTo + ')';
       case 'fixed': return 'Replace with fixed text';

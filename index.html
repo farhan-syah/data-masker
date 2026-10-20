@@ -511,7 +511,8 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <h2>Help</h2>
   <section>
     <h3>What this tool does</h3>
-    <p>It replaces personal data in a spreadsheet with codes, ranges or blanks. You can then share the copy.</p>
+    <p>It replaces direct identifiers in a spreadsheet with codes. These are names, IDs, emails, phone numbers, addresses and names in notes. You can then share the copy.</p>
+    <p>It keeps dates, salaries and other values as they are, so charts and sums still work. You can choose Mask on any column. Masking never changes the type: a number stays a number, a date stays a date, and text stays text.</p>
     <p>Everything happens in your browser. The tool never sends your file anywhere.</p>
   </section>
   <section>
@@ -544,11 +545,11 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
       <tbody>
         <tr><td>Replace with a code</td><td>Names, IDs and emails that you want to restore later. The same value always gets the same code.</td><td>Maria Garcia → PERSON_001</td></tr>
         <tr><td>Hide part of the value</td><td>Phone and reference numbers.</td><td>+1 555 010 4321 → ** *** *** **21</td></tr>
-        <tr><td>Replace with a group or range</td><td>Dates of birth, salaries and addresses.</td><td>01/23/1977 → 45-49<br>57080.84 → 57000-57999<br>12 Oak Street, Springfield, USA → USA</td></tr>
-        <tr><td>Move dates</td><td>Dates of events. Each row moves by its own number of days.</td><td>12/25/2004 → 03/12/2003</td></tr>
-        <tr><td>Round or change numbers</td><td>Numbers that need only a rough value.</td><td>5708.84 → 5700</td></tr>
-        <tr><td>Replace with fixed text</td><td>Columns that must stay but have no useful content.</td><td>any value → [REMOVED]</td></tr>
-        <tr><td>Hide names and numbers in notes</td><td>Free text such as notes and comments.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
+        <tr><td>Shorten the text</td><td>Addresses and web addresses. Keep the first letters, the last part of an address, or the website.</td><td>12 Oak Street, Springfield, USA → USA<br>https://shop.example/u/maria → shop.example</td></tr>
+        <tr><td>Move dates</td><td>Dates of birth and other dates. Each row moves by its own number of days. A date stays a date.</td><td>12/25/2004 → 03/12/2003</td></tr>
+        <tr><td>Round or change numbers</td><td>Salaries and other numbers. A number stays a number. A small random change keeps totals, averages and charts almost the same.</td><td>4120.00 → 4283.09 (within 5%)<br>5708.84 → 5700</td></tr>
+        <tr><td>Replace with fixed text</td><td>Text columns that must stay but have no useful content.</td><td>any value → [REMOVED]</td></tr>
+        <tr><td>Hide names and numbers in notes</td><td>Notes, comments and other free text.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
       </tbody>
     </table>
   </section>
@@ -583,7 +584,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
     <ul>
       <li>The suggestions can be wrong. Check every column.</li>
       <li>The tool finds names in notes only when the name is in a name column. It misses nicknames and other spellings.</li>
-      <li>A mix of details, such as job level, team and age group, can still point to one person. Before you share, count how many people have each mix. Merge groups that have fewer than 5 people.</li>
+      <li>A mix of details, such as job level, team and birth date, can still point to one person. Before you share, count how many people have each mix. Merge groups that have fewer than 5 people.</li>
       <li>Month names work in English, French, Spanish, Portuguese, Italian, German, Dutch and Turkish. For other languages, use number dates.</li>
       <li>If letters look wrong, choose another text encoding in step 1.</li>
       <li>The tool puts a “Check this column” label on text it cannot classify. This includes Chinese and Arabic text, and columns where most values are different. Read those columns yourself.</li>
@@ -1084,13 +1085,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     x.setUTCDate(x.getUTCDate() + days);
     return { y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate() };
   }
-  function ageAt(dt, now) {
-    var ty = now.getFullYear(), tm = now.getMonth() + 1, td = now.getDate();
-    var a = ty - dt.y;
-    if (tm < dt.m || (tm === dt.m && td < dt.d)) a--;
-    return a;
-  }
-
   // A header cell that is really a value: an email, an ID, a phone number or a date.
   function looksLikeData(v) {
     var t = String(v == null ? '' : v).trim();
@@ -1237,7 +1231,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     res.sensitive = (hint.sensitive || (R(c.icd) >= 0.8 && R(c.icdDot) >= 0.3)) && (kind === 'category' || kind === 'text');
     res.age = hint.age && kind === 'number';
     res.serialDates = kind === 'date' && c.serial > 0;
-    res.personal = !!PERSONAL_KINDS[kind] || (kind === 'date' && hint.birth) || res.sensitive;
+    // Personal data here means a direct identifier. Dates, money and private topics are not auto-masked.
+    res.personal = !!PERSONAL_KINDS[kind];
     res.freeText = kind === 'text';
     return res;
   }
@@ -1260,21 +1255,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     } else if (k === 'address') {
       r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'region';
     } else if (k === 'date') {
-      r.status = 'mask';
-      if (cls.birth) { r.strategy = 'gen'; p.genMode = 'ageband'; p.width = 5; }
-      else r.strategy = 'shift';
+      // Dates stay as they are. If the user chooses Mask, the dates move and stay dates.
+      r.strategy = 'shift';
     } else if (k === 'money') {
-      r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'band'; p.width = 1000;
+      // Money stays as it is. If the user chooses Mask, the number stays a number with a small random change.
+      r.strategy = 'num'; p.numMode = 'noise'; p.noisePct = 5;
     } else if (k === 'text') {
       r.status = 'mask'; r.strategy = 'scrub';
     } else if (k === 'url') {
       r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'urlhost';
-    } else if (cls.age) {
-      r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'band'; p.width = 5;
     } else if (k === 'location') {
       r.status = 'mask'; r.strategy = 'num'; p.numMode = 'round'; p.roundTo = 0.1;
     } else if (cls.sensitive) {
-      r.status = 'mask'; r.strategy = 'pseudo'; p.prefix = cleanPrefix(normalizeColumnName(header).toUpperCase());
+      r.strategy = 'pseudo'; p.prefix = cleanPrefix(normalizeColumnName(header).toUpperCase());
     } else if (k === 'empty') {
       r.status = 'hide';
     }
@@ -1284,7 +1277,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   function defaultParams() {
     return {
       prefix: 'CODE', tokenStyle: 'seq', keepN: 4, side: 'last', keepSep: true,
-      genMode: 'year', width: 5, firstN: 3, parts: 1, numMode: 'round', roundTo: 100, noisePct: 5, fixedText: '[REMOVED]'
+      genMode: 'firstn', firstN: 3, parts: 1, numMode: 'round', roundTo: 100, noisePct: 5, fixedText: '[REMOVED]'
     };
   }
 
@@ -1506,25 +1499,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         return partialMask(s, Math.max(0, parseInt(p.keepN, 10) || 0), p.side, p.keepSep);
       case 'gen': {
         var mode = p.genMode;
-        if (mode === 'year' || mode === 'ageband') {
-          var d = parseDate(s, col.serialDates, ctx.session.now, ctx.session.dateOrder);
-          if (!d) return markUnparsed(ctx, col);
-          if (mode === 'year') return String(d.y);
-          var w = Math.max(1, parseInt(p.width, 10) || 5);
-          // Thai dates use the Buddhist era (year + 543).
-          var age = ageAt({ y: d.y > ctx.session.now.getFullYear() + 50 ? d.y - 543 : d.y, m: d.m, d: d.d }, ctx.session.now);
-          if (w === 1) return String(age);
-          var lo = Math.floor(age / w) * w;
-          return lo + '-' + (lo + w - 1);
-        }
-        if (mode === 'band') {
-          var nv = parseNumber(s);
-          if (!nv) return markUnparsed(ctx, col);
-          var bw = Math.abs(parseFloat(p.width)) || 1000;
-          var blo = Math.floor(nv.v / bw) * bw;
-          var intBand = Number.isInteger(bw) && Number.isInteger(blo);
-          return intBand ? (blo + '-' + (blo + bw - 1)) : (blo.toFixed(2) + '-' + (blo + bw).toFixed(2));
-        }
         if (mode === 'urlhost') {
           var um = /^(?:[a-z][a-z0-9+.-]*:\/\/)?([^\/?#\s:]+)/i.exec(s);
           return um ? um[1].toLowerCase() : markUnparsed(ctx, col);
@@ -1841,18 +1815,25 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   var STRATEGIES = [
     ['pseudo', 'Replace with a code', 'Each name or number becomes a code such as PERSON_001. The same value always gets the same code.'],
     ['partial', 'Hide part of the value', 'Show a few letters or digits. The rest become *.'],
-    ['gen', 'Replace with a group or range', 'Replace the exact value with a group: a year, an age group, a number range, first letters or the end of an address.'],
+    ['gen', 'Shorten the text', 'Keep only the first letters, the last part of an address, or the website of a web address.'],
     ['shift', 'Move dates', 'Move each date by a random number of days.'],
-    ['num', 'Round or change numbers', 'Round each number, or change it by a small random amount.'],
+    ['num', 'Round or change numbers', 'Keep a number, but round it or change it by a small random amount. Charts and sums still work.'],
     ['fixed', 'Replace with fixed text', 'Every filled cell gets the same text. Empty cells stay empty.'],
     ['scrub', 'Hide names and numbers in notes', 'Hide names, IDs, emails and phone numbers in free text. Read the rest of the text yourself.']
   ];
   var STRAT_LABEL = {}; var STRAT_HELP = {};
   STRATEGIES.forEach(function (s) { STRAT_LABEL[s[0]] = s[1]; STRAT_HELP[s[0]] = s[2]; });
   var GEN_MODES = [
-    ['year', 'Year only (for dates)'], ['ageband', 'Age group (for dates)'],
-    ['band', 'Number range'], ['firstn', 'First letters (for text)'], ['region', 'Last part of an address (for example the country)'], ['urlhost', 'Website only, without the path (for web addresses)']
+    ['firstn', 'First letters'], ['region', 'Last part of an address (for example the country)'], ['urlhost', 'Website only, without the path']
   ];
+  // Each method keeps the format of the column: numbers stay numbers, dates stay dates, text stays text.
+  var NUMBER_KINDS = { number: 1, money: 1, location: 1 };
+  function allowedStrategies(c) {
+    if (c.kind === 'date') return ['shift'];
+    if (NUMBER_KINDS[c.kind]) return ['num'];
+    return ['pseudo', 'partial', 'gen', 'fixed', 'scrub'];
+  }
+
 
   function bump() {
     state.version++;
@@ -2039,7 +2020,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         idx: i, header: hd, norm: norm, kind: cls.kind, birth: cls.birth, personal: cls.personal, freeText: cls.freeText,
         serialDates: cls.serialDates, info: cls.info, status: sug.status, strategy: sug.strategy,
         params: sug.params, outNameUser: '', outName: hd, samples: samples, sampleRows: sampleRows, presetPII: false,
-        review: cls.review
+        review: cls.review, sensitive: cls.sensitive
       };
     });
     state.sanitise.dateOrder = detectDateOrder();
@@ -2188,6 +2169,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     var b = [];
     if (c.personal || c.presetPII) b.push('<span class="badge b-danger">Personal data</span>');
     if (c.freeText) b.push('<span class="badge b-warn">Free text: read it yourself</span>');
+    if (c.sensitive) b.push('<span class="badge b-warn">Private topic</span>');
     if (c.review) b.push('<span class="badge b-warn">Check this column</span>');
     if (c.serialDates) b.push('<span class="badge">Dates stored as Excel numbers</span>');
     return b.join(' ');
@@ -2246,9 +2228,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         }
         break;
       case 'gen':
-        h += selField(c, 'genMode', 'Group by', '', GEN_MODES);
-        if (p.genMode === 'ageband') h += numField(c, 'width', 'Years in each age group', 'Ages are worked out from today.', 1, 1);
-        if (p.genMode === 'band') h += numField(c, 'width', 'Size of each range', '', 1, 'any');
+        h += selField(c, 'genMode', 'Keep', '', GEN_MODES);
         if (p.genMode === 'firstn') h += numField(c, 'firstN', 'How many letters', '', 0, 1);
         if (p.genMode === 'region') h += numField(c, 'parts', 'How many address parts to keep', 'Parts are separated by commas. Parts with digits, such as a postcode, are removed.', 1, 1);
         break;
@@ -2324,7 +2304,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     if (st === 'mask') {
       var sid = 'f-' + i + '-strategy';
       h += '<div class="field"><label for="' + sid + '">How to mask</label><select id="' + sid + '" data-strategy aria-describedby="' + sid + '-h" title="' + esc(STRAT_HELP[c.strategy]) + '">' +
-        STRATEGIES.map(function (s) { return '<option value="' + s[0] + '"' + (c.strategy === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
+        STRATEGIES.filter(function (s) { return allowedStrategies(c).indexOf(s[0]) >= 0 || c.strategy === s[0]; }).map(function (s) { return '<option value="' + s[0] + '"' + (c.strategy === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
         '</select><span class="sr-only" id="' + sid + '-h">' + esc(STRAT_HELP[c.strategy]) + '</span></div>';
       h += '<div class="params">' + paramsHtml(c) + '</div>';
     } else if (st === 'accept') {
@@ -2371,9 +2351,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     if (sel) sel.addEventListener('change', function () {
       c.strategy = sel.value;
       if (c.strategy === 'gen') {
-        if (c.kind === 'date') c.params.genMode = c.birth ? 'ageband' : 'year';
-        else if (c.kind === 'money' || c.kind === 'number') { c.params.genMode = 'band'; if (!c.params.width || c.params.width < 10) c.params.width = 1000; }
-        else if (c.kind === 'address') c.params.genMode = 'region';
+        if (c.kind === 'address') c.params.genMode = 'region';
         else if (c.kind === 'url') c.params.genMode = 'urlhost';
         else c.params.genMode = 'firstn';
       }
@@ -2385,8 +2363,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       var ev = inp.tagName === 'SELECT' || inp.type === 'checkbox' ? 'change' : 'input';
       inp.addEventListener(ev, function () {
         c.params[key] = inp.type === 'checkbox' ? inp.checked : inp.value;
-        if (key === 'genMode' && inp.value === 'ageband' && (+c.params.width < 1 || +c.params.width > 50)) c.params.width = 5;
-        if (key === 'genMode' && inp.value === 'band' && +c.params.width < 10) c.params.width = 1000;
         if (inp.tagName === 'SELECT' || inp.type === 'checkbox' || key === 'keepN') rerenderCard(c);
         else updateExamples();
         bump();
@@ -2826,7 +2802,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     switch (c.strategy) {
       case 'pseudo': return 'Replace with code (' + L.cleanPrefix(p.prefix) + '_…)';
       case 'partial': return 'Hide part (keep ' + (parseInt(p.keepN, 10) || 0) + ' characters at the ' + (p.side === 'first' ? 'start' : 'end') + ')';
-      case 'gen': return 'Change to a range or group (' + ({ year: 'year', ageband: p.width + '-year age group', band: 'range of ' + p.width, firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
+      case 'gen': return 'Shorten the text (' + ({ firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
       case 'shift': return state.session.shiftMode === 'file' ? 'Shift dates (one shift for the file)' : 'Shift dates (a different shift for each row)';
       case 'num': return p.numMode === 'noise' ? 'Round or adjust numbers (random change ±' + p.noisePct + '%)' : 'Round or adjust numbers (round to ' + p.roundTo + ')';
       case 'fixed': return 'Replace with fixed text';
