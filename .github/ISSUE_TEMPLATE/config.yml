@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem (private)
+    url: https://github.com/farhan-syah/data-masker/security/advisories/new
+    about: Report a way that data can leave the page or reach a masked file. Do not post it in a public issue.

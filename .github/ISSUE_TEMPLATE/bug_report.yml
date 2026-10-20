@@ -1,0 +1,39 @@
+name: Bug report
+description: Something is wrong, missing or confusing.
+labels: ["type:bug", "status:needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never attach or paste real personal data.** Describe the column layout and the value patterns instead,
+        or use fictional values. Remove names, IDs, emails and phone numbers from screenshots.
+
+        A way that real data reaches a masked file, the column names export or the network is a security problem.
+        Use a [private security report](https://github.com/farhan-syah/data-masker/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the page footer, for example v1.0.0.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and system
+      placeholder: Chrome 130 on Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the file type, the column layout and the settings you chose. Use fictional values.
+    validations:
+      required: true

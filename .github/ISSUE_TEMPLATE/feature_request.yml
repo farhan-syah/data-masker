@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a change that makes the tool easier or safer to use.
+labels: ["type:feature", "status:needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is hard or missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: audience
+    attributes:
+      label: Who needs this?
+      description: For example a language, a country, a file format or a kind of user.

@@ -32,3 +32,13 @@ npx playwright install chromium
 - Keep one change per pull request.
 - Describe what the user sees before and after. Add a screenshot of the fictional sample when the screen changes.
 - Report a bug without attaching the file that triggers it. Describe the column layout and the value patterns instead.
+
+## Releases
+
+1. Change `version` in `package.json`, run `npm run build`, and commit both `package.json` and `index.html`.
+2. Push a tag that matches, for example `v1.1.0`.
+3. The Release workflow runs the tests on Linux, macOS and Windows, checks that the tag matches `package.json` and that `index.html` is current, then publishes a GitHub Release with `index.html` and `SHA256SUMS`.
+
+## Reporting problems
+
+Use the issue templates. Never attach real personal data. Report a leak of original values through a private security report (see `SECURITY.md`).
