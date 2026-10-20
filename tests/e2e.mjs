@@ -70,7 +70,7 @@ async function download(click, tag) {
 }
 const generate = async () => {
   await tab('p-export');
-  await page.click('#gen-btn');
+  await page.evaluate(() => window.__dm.generate());
   await page.waitForFunction(() => window.__dm.state.result && window.__dm.state.result.version === window.__dm.state.version);
 };
 const downloadKey = tag => download(async () => {
@@ -118,7 +118,18 @@ const keyRows = csvOf(key1);
 const key = new Map(keyRows.filter(r => r[0] && r[0][0] !== '#' && r[0] !== 'code').map(r => [r[0], r[1]]));
 check('match file fits the downloaded data after a settings change', masked1.every((r, i) => key.get(r['Full Name']) === orig[i]['Full Name']));
 check('match file holds the run ID and English field names', keyRows[0].join() === 'code,original_value,column' && keyRows.some(r => r[0] === '#run_id') && /MATCH-FILE-[A-Z0-9]{4}-/.test(key1));
-check('the page warns that settings changed after the download', /changed settings|settings after/i.test(await page.textContent('#export-msg')), await page.textContent('#export-msg'));
+check('the page warns that settings changed after the download', /changed settings/i.test(await page.textContent('#export-msg')), await page.textContent('#export-msg'));
+
+// ---------- row choice gives feedback and the preview follows it ----------
+await tab('p-export');
+await page.check('input[name=rows-mode][value=first]'); await page.fill('#rows-n', '3');
+const firstInfo = await page.evaluate(() => ({ s: document.querySelector('#rows-summary').textContent, rows: document.querySelectorAll('#preview tbody tr').length, nums: [...document.querySelectorAll('#preview tbody th')].map(e => e.textContent) }));
+check('first rows: the summary and the preview follow the choice', /first 3 rows of 60/.test(firstInfo.s) && firstInfo.rows === 3 && firstInfo.nums.join() === '1,2,3', JSON.stringify(firstInfo));
+await page.check('input[name=rows-mode][value=random]'); await page.fill('#rows-n', '20');
+const rndInfo = await page.evaluate(() => ({ s: document.querySelector('#rows-summary').textContent, rows: document.querySelectorAll('#preview tbody tr').length }));
+check('random rows: the preview shows at most 5 rows', /20 random rows out of 60/.test(rndInfo.s) && rndInfo.rows === 5, JSON.stringify(rndInfo));
+await page.check('input[name=rows-mode][value=all]');
+check('all rows: the summary says so', /all 60 rows/.test(await page.textContent('#rows-summary')));
 
 // ---------- restore ----------
 await tab('p-restore');

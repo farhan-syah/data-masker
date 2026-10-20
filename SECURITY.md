@@ -1,7 +1,7 @@
 # Security
 
-This tool must never send data anywhere and must never put original values into a masked file.
+This tool must never send data anywhere. It must never put original values into a masked file.
 
-Report a way to break either rule through a [private security report](https://github.com/farhan-syah/data-masker/security/advisories/new). Do not open a public issue. Do not attach real personal data. Describe the file layout and use fictional values.
+To report a way to break either rule, use a [private security report](https://github.com/farhan-syah/data-masker/security/advisories/new). Never open a public issue. Never attach real personal data. Describe the file layout and use fictional values.
 
 Supported version: the latest release.

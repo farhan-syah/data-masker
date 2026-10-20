@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var L = window.DMLogic;
-  var PREVIEW_ROWS = 20;
+  var PREVIEW_ROWS = 5;
   var CHUNK = 1000;
   var SAMPLE_CSV = 'Full Name,National ID,Grade,Department,Date of Birth,Hire Date,Salary,Notes\r\n' +
     'Maria Garcia,912-34-5124,L4,Finance,04/12/1988,07/01/2014,4120.00,Parental leave until 11/30/2026\r\n' +
@@ -60,7 +60,7 @@
     a.href = url; a.download = name; a.style.display = 'none';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
-    announce('File ' + name + ' downloaded.');
+    announce('Downloaded ' + name + '.');
   }
   function copyText(text, okMsg) {
     function fallback() {
@@ -137,19 +137,19 @@
   };
 
   var STRATEGIES = [
-    ['pseudo', 'Replace with code', 'Each name or number becomes a code, for example PERSON_001. The same value always gets the same code.'],
-    ['partial', 'Hide part', 'Keep a few letters or digits at the start or end. The rest become *.'],
-    ['gen', 'Change to a range or group', 'The exact value becomes a group: year, age group, number range, first letters or address region.'],
-    ['shift', 'Shift dates', 'Each date moves by a random number of days. Intervals between dates in the same row stay exact.'],
-    ['num', 'Round or adjust numbers', 'Round each number to a set step, or change it at random within a set percentage.'],
+    ['pseudo', 'Replace with a code', 'Each name or number becomes a code such as PERSON_001. The same value always gets the same code.'],
+    ['partial', 'Hide part of the value', 'Show a few letters or digits. The rest become *.'],
+    ['gen', 'Replace with a group or range', 'Replace the exact value with a group: a year, an age group, a number range, first letters or the end of an address.'],
+    ['shift', 'Move dates', 'Move each date by a random number of days.'],
+    ['num', 'Round or change numbers', 'Round each number, or change it by a small random amount.'],
     ['fixed', 'Replace with fixed text', 'Every filled cell gets the same text. Empty cells stay empty.'],
-    ['scrub', 'Mask names in notes', 'Names from the name columns, plus ID numbers, emails and phone numbers in the notes, become codes or labels. Read the rest of the text yourself.']
+    ['scrub', 'Hide names and numbers in notes', 'Hide names, IDs, emails and phone numbers in free text. Read the rest of the text yourself.']
   ];
   var STRAT_LABEL = {}; var STRAT_HELP = {};
   STRATEGIES.forEach(function (s) { STRAT_LABEL[s[0]] = s[1]; STRAT_HELP[s[0]] = s[2]; });
   var GEN_MODES = [
-    ['year', 'Year only (dates)'], ['ageband', 'Age or length-of-service group (dates)'],
-    ['band', 'Number range'], ['firstn', 'First N characters (text)'], ['region', 'Last part of an address (such as the country)']
+    ['year', 'Year only (for dates)'], ['ageband', 'Age group (for dates)'],
+    ['band', 'Number range'], ['firstn', 'First letters (for text)'], ['region', 'Last part of an address (for example the country)']
   ];
 
   function bump() {
@@ -181,7 +181,7 @@
     if (id === 'p-columns') refreshExamples();
     if (id === 'p-risk' && state.rows.length) {
       renderRisk();
-      // The group-size check needs the masked rows, so prepare them here.
+      // The check on mixes of details needs the masked rows, so make them here.
       if (!(state.result && state.result.version === state.version)) generate().then(null, function () {});
     }
     if (id === 'p-export') { renderPreview(); renderExport(); }
@@ -232,7 +232,7 @@
     $('#try-sample').addEventListener('click', function () { loadFile(new File([SAMPLE_CSV], 'sample-staff-list.csv', { type: 'text/csv' })); });
     $('#no-header').addEventListener('change', function (e) {
       state.noHeader = e.target.checked; buildTable(); renderLoadInfo();
-      announce(state.noHeader ? 'The columns are named Column 1, Column 2 and so on.' : 'Row ' + (state.headerRow + 1) + ' is the header row.');
+      announce(state.noHeader ? 'The columns are named Column 1, Column 2 and so on.' : 'Row ' + (state.headerRow + 1) + ' has the column names.');
     });
     $('#enc-select').addEventListener('change', function (e) {
       Bridge.call({ type: 'open', slot: 'main', name: state.file.name, buf: state.buf, encoding: e.target.value }).then(function (res) {
@@ -248,7 +248,7 @@
       setMsg(msg, 'err', 'The tool cannot open <b>' + esc(file.name) + '</b>. Choose a CSV, Excel (.xlsx, .xls) or .ods file.');
       return;
     }
-    setMsg(msg, 'info', 'Reading <b>' + esc(file.name) + '</b> (' + fmtBytes(file.size) + ')…');
+    setMsg(msg, 'info', 'Opening <b>' + esc(file.name) + '</b> (' + fmtBytes(file.size) + ')…');
     file.arrayBuffer().then(function (buf) {
       state.buf = buf;
       return Bridge.call({ type: 'open', slot: 'main', name: file.name, buf: buf });
@@ -259,10 +259,10 @@
       state.sheets = res.sheets; state.sheet = res.sheet;
       state.session.random = new Map(); noiseCache.clear(); rowShiftCache.clear();
       setRaw(res.rows);
-      setMsg(msg, 'ok', 'File <b>' + esc(file.name) + '</b> is open.');
+      setMsg(msg, 'ok', 'Opened <b>' + esc(file.name) + '</b>.');
     }).catch(function (err) {
       setMsg(msg, 'err', 'The tool cannot read <b>' + esc(file.name) + '</b>: ' + esc(err.message) +
-        '. Check that the file is not damaged or password-protected, then try again.');
+        '. Check that the file is not damaged and has no password. Then try again.');
     });
   }
 
@@ -398,13 +398,13 @@
     var lim = Math.min(state.raw.length, 30), width = 0;
     for (var i = 0; i < lim; i++) width = Math.max(width, state.raw[i].length);
     width = Math.min(width, 12);
-    var html = '<table class="grid raw"><thead><tr><th scope="col">Header row</th><th scope="col">Row</th>';
+    var html = '<table class="grid raw"><thead><tr><th scope="col">Column names</th><th scope="col">Row</th>';
     for (var c = 0; c < width; c++) html += '<th scope="col">' + String.fromCharCode(65 + (c % 26)) + '</th>';
     html += '</tr></thead><tbody>';
     for (var r = 0; r < lim; r++) {
       var on = !state.noHeader && r === state.headerRow;
       html += '<tr class="' + (on ? 'hdr-on' : '') + '"><td><input type="radio" name="hdr-row" value="' + r + '"' +
-        (on ? ' checked' : '') + (state.noHeader ? ' disabled' : '') + ' aria-label="Use row ' + (r + 1) + ' as the header row"></td><td>' + (r + 1) + '</td>';
+        (on ? ' checked' : '') + (state.noHeader ? ' disabled' : '') + ' aria-label="Row ' + (r + 1) + ' has the column names"></td><td>' + (r + 1) + '</td>';
       for (var c2 = 0; c2 < width; c2++) html += '<td dir="auto">' + esc(trunc(state.raw[r][c2], 22)) + '</td>';
       html += '</tr>';
     }
@@ -413,19 +413,19 @@
     $$('input[name=hdr-row]').forEach(function (rb) {
       rb.addEventListener('change', function () {
         state.headerRow = +rb.value; buildTable(); renderLoadInfo();
-        announce('Row ' + (state.headerRow + 1) + ' is now the header row.');
+        announce('Row ' + (state.headerRow + 1) + ' has the column names.');
       });
     });
     var v = state.validation, items = [];
     items.push('<li><b>' + fmtInt(v.rows) + '</b> data rows and <b>' + fmtInt(v.cols) + '</b> columns.</li>');
-    if (v.emptyRows) items.push('<li>' + fmtInt(v.emptyRows) + ' empty rows ignored.</li>');
-    if (v.dupRows) items.push('<li class="warn-t">' + fmtInt(v.dupRows) + ' duplicate rows (exactly the same as another row).</li>');
-    if (v.dupNames.length) items.push('<li class="warn-t">Repeated column names were numbered: ' + esc(v.dupNames.join(', ')) + '.</li>');
-    if (state.noHeader && state.autoNoHeader) items.push('<li class="warn-t">Row ' + (state.headerRow + 1) + ' looks like data, not column names, so the columns are named Column 1, Column 2 and so on. Untick “My file has no header row” if that row holds the names.</li>');
-    if (v.dataHeaders && !state.noHeader) items.push('<li class="err-t">' + v.dataHeaders + ' cells in the header row look like real values (an email, ID, phone number or date). The tool renamed them Column N. If your file has no header row, tick the box above.</li>');
-    if (v.blankHeaders) items.push('<li class="warn-t">' + v.blankHeaders + ' columns without a name were named “Column N”.</li>');
-    if (v.emptyCols.length) items.push('<li>Fully empty columns (suggested: Remove): ' + esc(v.emptyCols.join(', ')) + '.</li>');
-    if (!v.rows) items.push('<li class="err-t">' + (state.raw.length <= (state.noHeader ? 0 : 1) ? 'The file has no data rows.' : 'No data rows below the header row. Choose another header row.') + '</li>');
+    if (v.emptyRows) items.push('<li>' + fmtInt(v.emptyRows) + ' empty rows were ignored.</li>');
+    if (v.dupRows) items.push('<li class="warn-t">' + fmtInt(v.dupRows) + ' rows are exact copies of another row.</li>');
+    if (v.dupNames.length) items.push('<li class="warn-t">Some columns had the same name. The tool added numbers: ' + esc(v.dupNames.join(', ')) + '.</li>');
+    if (state.noHeader && state.autoNoHeader) items.push('<li class="warn-t">Row ' + (state.headerRow + 1) + ' looks like data, not column names. The tool named the columns “Column 1”, “Column 2” and so on. Untick the box if that row has the names.</li>');
+    if (v.dataHeaders && !state.noHeader) items.push('<li class="err-t">' + v.dataHeaders + ' cells in the header row look like real values (an email, ID, phone number or date). The tool renamed them “Column N”. If your file has no header row, tick the box above.</li>');
+    if (v.blankHeaders) items.push('<li class="warn-t">' + v.blankHeaders + ' columns had no name. The tool named them “Column N”.</li>');
+    if (v.emptyCols.length) items.push('<li>Empty columns (the tool suggests Remove): ' + esc(v.emptyCols.join(', ')) + '.</li>');
+    if (!v.rows) items.push('<li class="err-t">' + (state.raw.length <= (state.noHeader ? 0 : 1) ? 'The file has no rows of data.' : 'There are no rows below the header row. Choose another header row.') + '</li>');
     $('#validation').innerHTML = items.join('');
     $('#to-columns').disabled = !v.rows;
   }
@@ -482,15 +482,15 @@
       if (c.status === 'accept' && (c.personal || c.presetPII)) risky++;
     });
     var html = fmtInt(state.cols.length) + ' columns: ' + n.mask + ' to mask, ' + n.accept + ' to keep, ' + n.hide + ' to remove';
-    if (risky) html += ' · <b class="err-t">' + risky + (risky === 1 ? ' personal column is' : ' personal columns are') + ' set to Keep</b>';
+    if (risky) html += ' · <b class="err-t">' + risky + (risky === 1 ? ' column with personal data is' : ' columns with personal data are') + ' set to Keep</b>';
     $('#col-count').innerHTML = html;
   }
 
   function badgeHtml(c) {
     var b = [];
     if (c.personal || c.presetPII) b.push('<span class="badge b-danger">Personal data</span>');
-    if (c.freeText) b.push('<span class="badge b-warn">Notes: read yourself</span>');
-    if (c.review) b.push('<span class="badge b-warn">Check: could be personal data</span>');
+    if (c.freeText) b.push('<span class="badge b-warn">Free text: read it yourself</span>');
+    if (c.review) b.push('<span class="badge b-warn">Check this column</span>');
     if (c.serialDates) b.push('<span class="badge">Dates stored as Excel numbers</span>');
     return b.join(' ');
   }
@@ -533,37 +533,37 @@
     var p = c.params, h = '';
     switch (c.strategy) {
       case 'pseudo':
-        h += textField(c, 'prefix', 'Code prefix', '');
-        h += selField(c, 'tokenStyle', 'Code type', '', [['seq', 'Numbered (_001, _002)'], ['random', 'Random (_7KQ3XZ)']]);
+        h += textField(c, 'prefix', 'Start of the code', '');
+        h += selField(c, 'tokenStyle', 'Type of code', '', [['seq', 'Numbers (_001, _002)'], ['random', 'Random letters (_7KQ3XZ)']]);
         break;
       case 'partial':
-        h += numField(c, 'keepN', 'Characters to keep', '', 0, 1);
-        h += selField(c, 'side', 'Keep at', '', [['last', 'The end'], ['first', 'The start']]);
-        h += checkField(c, 'keepSep', 'Keep separators (- / . @ and spaces)', '');
+        h += numField(c, 'keepN', 'Characters to show', '', 0, 1);
+        h += selField(c, 'side', 'Show them at', '', [['last', 'The end'], ['first', 'The start']]);
+        h += checkField(c, 'keepSep', 'Keep - / . @ and spaces', '');
         if (L.partialRevealsDate(firstSanitized(c), c, parseInt(p.keepN, 10) || 0, p.side, state.sanitise.dateOrder)) {
-          h += '<p class="msg err inline" role="alert">The kept part reveals the month or day, not only the year. Keep fewer characters, or choose Change to a range or group.</p>';
+          h += '<p class="msg err inline" role="alert">This shows the month or day, not only the year. Show fewer characters, or choose “Replace with a group or range”.</p>';
         }
         if (c.kind === 'national_id') {
-          h += '<p class="msg warn inline">Digits of a national ID can still identify a person, and some IDs encode a birth date. Safer choices: Remove, or Replace with code using random codes.</p>';
+          h += '<p class="msg warn inline">Digits of a national ID can still identify a person. Some IDs contain a birth date. Safer: choose Remove, or choose “Replace with a code” with random letters.</p>';
         }
         break;
       case 'gen':
-        h += selField(c, 'genMode', 'Kind of group', '', GEN_MODES);
-        if (p.genMode === 'ageband') h += numField(c, 'width', 'Group size (years)', 'Ages use today\'s date.', 1, 1);
-        if (p.genMode === 'band') h += numField(c, 'width', 'Range size', '', 1, 'any');
-        if (p.genMode === 'firstn') h += numField(c, 'firstN', 'Number of characters', '', 0, 1);
-        if (p.genMode === 'region') h += numField(c, 'parts', 'Parts to keep from the end', 'Parts are separated by commas. Parts with digits, such as a postcode, are dropped.', 1, 1);
+        h += selField(c, 'genMode', 'Group by', '', GEN_MODES);
+        if (p.genMode === 'ageband') h += numField(c, 'width', 'Years in each age group', 'Ages are worked out from today.', 1, 1);
+        if (p.genMode === 'band') h += numField(c, 'width', 'Size of each range', '', 1, 'any');
+        if (p.genMode === 'firstn') h += numField(c, 'firstN', 'How many letters', '', 0, 1);
+        if (p.genMode === 'region') h += numField(c, 'parts', 'How many address parts to keep', 'Parts are separated by commas. Parts with digits, such as a postcode, are removed.', 1, 1);
         break;
       case 'shift':
-        h += '<p class="help">' + (state.session.shiftMode === 'file' ? 'One shift for the whole file.' : 'A different shift for each row.') + ' Change this under Tidy and date options.</p>';
+        h += '<p class="help">' + (state.session.shiftMode === 'file' ? 'All rows move by the same number of days.' : 'Each row moves by a different number of days.') + ' Change this under “Dates and cleaning”.</p>';
         break;
       case 'num':
-        h += selField(c, 'numMode', 'How to change', '', [['round', 'Round'], ['noise', 'Small random change (±%)']]);
-        if (p.numMode === 'noise') h += numField(c, 'noisePct', 'Largest change (%)', '', 0, 'any');
+        h += selField(c, 'numMode', 'How to change the number', '', [['round', 'Round it'], ['noise', 'Add a small random change']]);
+        if (p.numMode === 'noise') h += numField(c, 'noisePct', 'Biggest change (%)', '', 0, 'any');
         else h += numField(c, 'roundTo', 'Round to the nearest', '', 0, 'any');
         break;
       case 'fixed':
-        h += textField(c, 'fixedText', 'Replacement text', '');
+        h += textField(c, 'fixedText', 'Text to use', '');
         break;
     }
     return h;
@@ -596,9 +596,9 @@
       return '<p class="ex-title">Example: before → after</p><ul class="ex-list">' + rows.map(function (x) {
         return '<li>' + code(x[0]) + '<span class="ex-arrow" aria-hidden="true">→</span><span class="sr-only"> becomes </span>' + code(x[1]) + '</li>';
       }).join('') + '</ul>' + (bad ? '<p class="msg warn inline">The tool cannot read ' + (bad === 1 ? 'this value' : 'these values') + ' with this method. ' +
-        (c.kind === 'date' ? 'Check the date order under Tidy and date options, or use another method.' : 'Choose another method.') + '</p>' : '');
+        (c.kind === 'date' ? 'Check the date order under “Dates and cleaning”, or choose another method.' : 'Choose another method.') + '</p>' : '');
     }
-    var title = c.status === 'hide' ? 'Examples (left out of the download)' : 'Examples (downloaded as they are)';
+    var title = c.status === 'hide' ? 'Examples (this column is left out)' : 'Examples (copied as they are)';
     return '<p class="ex-title">' + title + '</p><ul class="ex-list">' + c.samples.map(function (t) { return '<li>' + code(t) + '</li>'; }).join('') + '</ul>';
   }
   function refreshExamples() {
@@ -613,10 +613,10 @@
     var i = c.idx, st = c.status;
     var h = '<article class="col-card st-' + st + '" id="card-' + i + '" aria-labelledby="cn-' + i + '">';
     h += '<div class="col-info"><h3 id="cn-' + i + '">' + esc(c.header) + '</h3>';
-    h += '<p class="meta">Looks like: <b>' + esc(L.KIND_LABEL[c.kind]) + '</b></p>';
+    h += '<p class="meta">Type: <b>' + esc(L.KIND_LABEL[c.kind]) + '</b></p>';
     h += '<p class="badges">' + badgeHtml(c) + '</p>';
     h += '<div class="ex" id="ex-' + i + '">' + examplesHtml(c) + '</div></div>';
-    h += '<div class="col-main"><fieldset class="status"><legend>Action</legend><div class="seg">';
+    h += '<div class="col-main"><fieldset class="status"><legend>What to do</legend><div class="seg">';
     [['mask', 'Mask'], ['hide', 'Remove'], ['accept', 'Keep']].forEach(function (o) {
       var id = 's-' + i + '-' + o[0];
       h += '<input type="radio" name="st-' + i + '" id="' + id + '" value="' + o[0] + '"' + (st === o[0] ? ' checked' : '') + '><label for="' + id + '">' + o[1] + '</label>';
@@ -625,18 +625,18 @@
     h += '<div class="strategy">';
     if (st === 'mask') {
       var sid = 'f-' + i + '-strategy';
-      h += '<div class="field"><label for="' + sid + '">Masking method</label><select id="' + sid + '" data-strategy aria-describedby="' + sid + '-h" title="' + esc(STRAT_HELP[c.strategy]) + '">' +
+      h += '<div class="field"><label for="' + sid + '">How to mask</label><select id="' + sid + '" data-strategy aria-describedby="' + sid + '-h" title="' + esc(STRAT_HELP[c.strategy]) + '">' +
         STRATEGIES.map(function (s) { return '<option value="' + s[0] + '"' + (c.strategy === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
         '</select><span class="sr-only" id="' + sid + '-h">' + esc(STRAT_HELP[c.strategy]) + '</span></div>';
       h += '<div class="params">' + paramsHtml(c) + '</div>';
     } else if (st === 'accept') {
-      if (c.personal || c.presetPII) h += '<p class="msg err inline">This column looks like personal data but is set to Keep. Change it to Mask or Remove.</p>';
-      if (c.freeText) h += '<p class="msg warn inline">Notes can contain names. Choose Mask with Mask names in notes, or Remove.</p>';
+      if (c.personal || c.presetPII) h += '<p class="msg err inline">This column has personal data, but you chose Keep. Choose Mask or Remove.</p>';
+      if (c.freeText) h += '<p class="msg warn inline">Notes can have names in them. Choose Mask with “Hide names and numbers in notes”, or choose Remove.</p>';
     }
     h += '</div></div>';
     var oid = 'on-' + i;
-    h += '<div class="col-extra"><details class="more"' + (c.outNameUser ? ' open' : '') + '><summary>Rename column</summary>';
-    h += '<div class="field"><label for="' + oid + '">Column name in the new file</label><input type="text" id="' + oid + '" data-outname value="' + esc(c.outNameUser) + '" placeholder="' + esc(state.sanitise.normHeader ? c.norm : c.header) + '"' + (st === 'hide' ? ' disabled' : '') + '></div>';
+    h += '<div class="col-extra"><details class="more"' + (c.outNameUser ? ' open' : '') + '><summary>Change the column name</summary>';
+    h += '<div class="field"><label for="' + oid + '">Name in the new file</label><input type="text" id="' + oid + '" data-outname value="' + esc(c.outNameUser) + '" placeholder="' + esc(state.sanitise.normHeader ? c.norm : c.header) + '"' + (st === 'hide' ? ' disabled' : '') + '></div>';
     h += '</details></div>';
     h += '</article>';
     return h;
@@ -705,7 +705,7 @@
       c.qi = c.qiDefault;
     });
     renderColumns(); bump();
-    announce('Every column is back to its suggested choice.');
+    announce('Every column is back to the suggested choice.');
   }
 
   // ---------- presets ----------
@@ -727,15 +727,15 @@
     };
     var name = 'saved-settings-' + (L.normalizeColumnName(domain) || 'my-settings') + '.json';
     download(name, JSON.stringify(preset, null, 2), 'application/json');
-    setMsg($('#preset-msg'), 'ok', 'Settings file <b>' + esc(name) + '</b> saved. It holds no data.');
+    setMsg($('#preset-msg'), 'ok', 'Saved <b>' + esc(name) + '</b>. It has no data from your file.');
   }
 
   function loadPreset(file) {
     var msg = $('#preset-msg');
     file.text().then(function (text) {
       var p;
-      try { p = JSON.parse(text); } catch (e) { throw new Error('the file is not valid JSON'); }
-      if (!p || p.format !== 'data-masker-preset' || typeof p.columns !== 'object') throw new Error('the file is not a settings file from this tool');
+      try { p = JSON.parse(text); } catch (e) { throw new Error('the file is not a valid settings file'); }
+      if (!p || p.format !== 'data-masker-preset' || typeof p.columns !== 'object') throw new Error('this is not a settings file from this tool');
       if (!state.cols.length) throw new Error('open a data file first');
       var matched = 0, unmatched = [];
       var validStatus = { mask: 1, hide: 1, accept: 1 };
@@ -761,12 +761,12 @@
       if (p.shift_mode === 'row' || p.shift_mode === 'file') state.session.shiftMode = p.shift_mode;
       $('#preset-domain').value = p.domain || ''; $('#preset-desc').value = p.description || '';
       renderColumns(); renderSanitise(); bump();
-      var html = 'Settings <b>' + esc(p.domain || file.name) + '</b> applied: ' + matched + ' columns matched.';
-      if (unmatched.length) html += '<br>Columns with no saved setting (suggestion used): ' + esc(unmatched.join(', ')) + '.';
-      if (missing.length) html += '<br><b>Columns in the settings file but not in this file:</b> ' + esc(missing.join(', ')) + '. Check that this is the right file.';
+      var html = 'Loaded <b>' + esc(p.domain || file.name) + '</b>. It matched ' + matched + ' columns.';
+      if (unmatched.length) html += '<br>These columns are not in the settings file. The tool used its suggestion: ' + esc(unmatched.join(', ')) + '.';
+      if (missing.length) html += '<br><b>These columns are in the settings file but not in this file:</b> ' + esc(missing.join(', ')) + '. Check that you chose the right file.';
       setMsg(msg, missing.length ? 'warn' : 'ok', html);
     }).catch(function (err) {
-      setMsg(msg, 'err', 'The tool cannot use settings file <b>' + esc(file.name) + '</b>: ' + esc(err.message) + '. Choose a .json file that this tool saved.');
+      setMsg(msg, 'err', 'The tool cannot use <b>' + esc(file.name) + '</b>: ' + esc(err.message) + '. Choose a .json file that this tool saved.');
     });
   }
 
@@ -803,8 +803,8 @@
     $('#new-shift').addEventListener('click', function () {
       state.session.shiftDays = L.randomShiftDays(); rowShiftCache.clear();
       bump();
-      announce('New date shifts are ready. An older match file no longer restores the dates.');
-      $('#shift-info').textContent = 'New date shifts are ready. Download again, and keep the new match file.';
+      announce('The tool chose new random shifts. An older match file cannot move the dates back.');
+      $('#shift-info').textContent = 'The tool chose new random shifts. Download the masked data and the match file again.';
     });
   }
 
@@ -944,30 +944,30 @@
   var generating = null;
   function generate() {
     if (generating) return generating;
-    var btn = $('#gen-btn'), prog = $('#gen-progress'), lab = $('#gen-progress-label');
-    btn.disabled = true; prog.hidden = false; lab.hidden = false; prog.value = 0;
+    var prog = $('#gen-progress'), lab = $('#gen-progress-label');
+    prog.hidden = false; lab.hidden = false; prog.value = 0;
     var version = state.version;
     var inner = (async function () {
       var idx = outputIndices();
       var run = prepareRun();
       var rows = await processRows(idx, run, version, function (done, total) {
         prog.value = done / total;
-        lab.textContent = 'Processing ' + fmtInt(done) + ' of ' + fmtInt(total) + ' rows…';
+        lab.textContent = 'Working on row ' + fmtInt(done) + ' of ' + fmtInt(total) + '…';
       });
       if (!rows) return null;
       state.result = makeResult(version, idx, run, rows);
       return state.result;
     })();
     generating = inner.then(function (res) {
-      generating = null; btn.disabled = false; prog.hidden = true; lab.hidden = true;
+      generating = null; prog.hidden = true; lab.hidden = true;
       if (!res) return generate();
       renderExport(); renderRiskSummary();
       if (!$('#p-risk').hidden) renderRisk();
-      announce('Masked data is ready: ' + fmtInt(res.rows.length) + ' rows.');
+      announce('The masked data is ready: ' + fmtInt(res.rows.length) + ' rows.');
       return res;
     }, function (err) {
-      generating = null; btn.disabled = false; prog.hidden = true; lab.hidden = true;
-      setMsg($('#export-msg'), 'err', 'The tool cannot prepare the data: ' + esc(err.message) + '. Check the column choices and try again.');
+      generating = null; prog.hidden = true; lab.hidden = true;
+      setMsg($('#export-msg'), 'err', 'The tool cannot make the masked data: ' + esc(err.message) + '. Check your column choices and try again.');
       throw err;
     });
     return generating;
@@ -980,13 +980,13 @@
   // ---------- step 4: preview and export ----------
   function renderPreview() {
     var box = $('#preview');
-    if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
+    if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; $('#preview-note').textContent = ''; return; }
     var idx = outputIndices().slice(0, PREVIEW_ROWS);
     var run = prepareRun();
     var showOrig = $('#prev-orig').checked;
-    var html = '<table class="grid preview"><caption class="sr-only">Preview before and after masking</caption><thead><tr><th scope="col">#</th>';
+    var html = '<table class="grid preview"><caption class="sr-only">Preview of the masked rows</caption><thead><tr><th scope="col" title="Row number in your file">Row</th>';
     state.cols.forEach(function (c) {
-      if (c.status === 'hide') html += '<th scope="col" class="hidden-col"><s>' + esc(c.header) + '</s><span class="tag">removed</span></th>';
+      if (c.status === 'hide') html += '<th scope="col" class="hidden-col"><s>' + esc(c.header) + '</s><span class="tag">left out</span></th>';
       else html += '<th scope="col">' + esc(c.outName) + (c.outName !== c.header ? '<span class="tag">was: ' + esc(c.header) + '</span>' : '') + '<span class="tag st-' + c.status + '">' + statusLabel(c.status) + '</span></th>';
     });
     html += '</tr></thead><tbody>';
@@ -997,7 +997,7 @@
       html += '<tr><th scope="row">' + (r + 1) + '</th>';
       state.cols.forEach(function (c) {
         var orig = state.rows[r][c.idx];
-        if (c.status === 'hide') { html += '<td class="hidden-col" title="Removed">—</td>'; return; }
+        if (c.status === 'hide') { html += '<td class="hidden-col" title="Left out">—</td>'; return; }
         var after = map[c.idx];
         if (after !== String(orig)) {
           html += '<td dir="auto" class="changed"><span class="after">' + esc(trunc(after, 60)) + '</span>' +
@@ -1008,26 +1008,43 @@
     });
     html += '</tbody></table>';
     box.innerHTML = html;
-    $('#preview-note').textContent = 'Showing the first ' + idx.length + ' of ' + fmtInt(outputIndices().length) + ' rows to download.';
+    $('#preview-note').textContent = 'Showing ' + idx.length + ' of the ' + fmtInt(outputIndices().length) + ' rows you will download.' +
+      (state.rowsMode === 'random' ? ' The tool picked them at random. The number is the row in your file.' : ' The number is the row in your file.');
   }
 
+  function rowsSummary() {
+    var n = state.rows.length, k = Math.min(state.rowsN, n);
+    if (state.rowsMode === 'first') return 'You will download the first ' + fmtInt(k) + (k === 1 ? ' row' : ' rows') + ' of ' + fmtInt(n) + '.';
+    if (state.rowsMode === 'random') return 'You will download ' + fmtInt(k) + ' random ' + (k === 1 ? 'row' : 'rows') + ' out of ' + fmtInt(n) + '.';
+    return 'You will download all ' + fmtInt(n) + ' rows.';
+  }
   function renderRowsControls() {
+    var n = state.rows.length, all = state.rowsMode === 'all';
     $$('input[name=rows-mode]').forEach(function (rb) { rb.checked = rb.value === state.rowsMode; });
-    $('#rows-n').value = state.rowsN;
-    $('#rows-n').disabled = state.rowsMode === 'all';
-    $('#resample').disabled = state.rowsMode !== 'random';
+    $('#rows-total').textContent = n ? '(' + fmtInt(n) + ')' : '';
+    $('#rows-n').value = Math.min(state.rowsN, n || state.rowsN);
+    $('#rows-n').max = n || '';
+    $('#rows-n-h').textContent = n ? 'Choose a number from 1 to ' + fmtInt(n) + '.' : '';
+    $('#rows-n').closest('.field').hidden = all;
+    $('#resample').closest('.field').hidden = state.rowsMode !== 'random';
+    $('#rows-extra').hidden = all;
+    $('#rows-summary').textContent = n ? rowsSummary() : '';
   }
   function initExport() {
     $$('input[name=rows-mode]').forEach(function (rb) {
-      rb.addEventListener('change', function () { state.rowsMode = rb.value; renderRowsControls(); bump(); });
+      rb.addEventListener('change', function () {
+        state.rowsMode = rb.value; renderRowsControls(); bump(); renderPreview(); announce(rowsSummary());
+      });
     });
     $('#rows-n').addEventListener('input', function (e) {
       var v = parseInt(e.target.value, 10);
-      if (v > 0) { state.rowsN = v; bump(); }
+      if (!(v > 0)) return;
+      state.rowsN = Math.min(v, state.rows.length);
+      renderRowsControls(); bump(); renderPreview();
     });
-    $('#resample').addEventListener('click', function () { state.sampleIdx = null; state.sampleKey = ''; bump(); announce('A new random sample is ready.'); });
+    $('#rows-n').addEventListener('change', renderRowsControls);
+    $('#resample').addEventListener('click', function () { state.sampleIdx = null; state.sampleKey = ''; bump(); renderPreview(); announce('The tool picked different random rows.'); });
     $('#prev-orig').addEventListener('change', renderPreview);
-    $('#gen-btn').addEventListener('click', function () { generate(); });
     $('#dl-csv').addEventListener('click', function () {
       freshResult().then(function (res) {
         noteData(res);
@@ -1048,10 +1065,10 @@
     $('#copy-data').addEventListener('click', function () {
       freshResult().then(function (res) {
         noteData(res);
-        copyText(toCSV([res.header].concat(res.rows), true), 'Masked data (' + fmtInt(res.rows.length) + ' rows) copied as CSV text.');
+        copyText(toCSV([res.header].concat(res.rows), true), 'Copied the masked data (' + fmtInt(res.rows.length) + ' rows) as CSV text.');
       });
     });
-    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Column names copied.'); });
+    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Copied the column names.'); });
     $('#dl-schema').addEventListener('click', function () { download('column-names-' + stamp() + '.txt', '﻿' + schemaText(), 'text/plain;charset=utf-8'); });
     // The match file always belongs to the masked data the user last downloaded. Sequential codes depend
     // on every setting, so a match file made from other settings would point codes at the wrong people.
@@ -1059,7 +1076,7 @@
     $('#dl-key').addEventListener('click', function () {
       (state.lastData ? Promise.resolve(state.lastData) : freshResult()).then(function (res) {
         if (!res.keyRows.length && !res.shiftCols.length) {
-          setMsg($('#export-msg'), 'info', 'This download has no codes and no shifted dates, so it needs no match file.');
+          setMsg($('#export-msg'), 'info', 'This download has no codes and no moved dates, so it needs no match file.');
           return;
         }
         pendingKey = res;
@@ -1076,7 +1093,7 @@
       state.lastData = res; state.dlKey = res.runId;
       download('MATCH-FILE-' + res.runId + '-' + stamp() + '-KEEP-ON-THIS-PC.csv', '﻿' + toCSV(keyAoa(res)), 'text/csv;charset=utf-8');
       if (!state.dlData) state.dlData = '';
-      if (res.version !== state.version) setMsg($('#export-msg'), 'warn', 'You changed settings after the last masked download. This match file fits that download (run ' + esc(res.runId) + '). To use the new settings, download the masked data again, then the match file again.');
+      if (res.version !== state.version) setMsg($('#export-msg'), 'warn', 'You changed settings after the last masked download. This match file fits that download (run ' + esc(res.runId) + '). To use the new settings, download the masked data again. Then download the match file again.');
       else checkRunMismatch();
       renderExport();
     });
@@ -1092,7 +1109,7 @@
   }
   function checkRunMismatch() {
     if (state.dlData && state.dlKey && state.dlData !== state.dlKey) {
-      setMsg($('#export-msg'), 'warn', 'The match file you downloaded (run ' + esc(state.dlKey) + ') does not fit the masked data you just downloaded (run ' + esc(state.dlData) + '), because the settings changed in between. Download the match file again.');
+      setMsg($('#export-msg'), 'warn', 'The match file (run ' + esc(state.dlKey) + ') does not fit the masked data you just downloaded (run ' + esc(state.dlData) + '). The settings changed in between. Download the match file again.');
     } else if (state.dlData && state.dlData === state.dlKey) {
       setMsg($('#export-msg'), '', '');
     }
@@ -1161,16 +1178,16 @@
     var box = $('#export-status');
     if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
     if (!fresh) {
-      box.innerHTML = '<p class="msg info">Press <b>Prepare masked data</b> to process all rows. The download buttons also prepare the data when needed.</p>';
+      box.innerHTML = '';
     } else {
-      var items = ['<li><b>' + fmtInt(res.rows.length) + '</b> rows and <b>' + res.header.length + '</b> columns ready to download.</li>',
-        '<li><b>' + fmtInt(res.keyRows.length) + '</b> codes in the match file.</li>'];
-      items.push('<li>Run ID <b>' + esc(res.runId) + '</b>. It is part of the file names, so you can match a masked file to its match file.</li>');
-      if (res.shiftCols.length) items.push('<li>Dates shifted in: ' + esc(res.shiftCols.join(', ')) + '.</li>');
-      if (res.shiftCols.length && res.shiftMode === 'row' && !res.anchor) items.push('<li class="warn-t">No masked column has a different code in every row. To restore the dates later, the file must keep the same row order.</li>');
-      if (res.stats.scrubHits) items.push('<li>' + fmtInt(res.stats.scrubHits) + ' names, numbers or emails replaced in notes.</li>');
+      var items = ['<li><b>' + fmtInt(res.rows.length) + '</b> rows and <b>' + res.header.length + '</b> columns are ready.</li>',
+        '<li><b>' + fmtInt(res.keyRows.length) + '</b> codes are in the match file.</li>'];
+      items.push('<li>Run ID <b>' + esc(res.runId) + '</b>. Both the masked file and the match file show it in their names.</li>');
+      if (res.shiftCols.length) items.push('<li>Dates moved in: ' + esc(res.shiftCols.join(', ')) + '.</li>');
+      if (res.shiftCols.length && res.shiftMode === 'row' && !res.anchor) items.push('<li class="warn-t">No masked column has a different code in every row. To restore the dates later, keep the rows in the same order.</li>');
+      if (res.stats.scrubHits) items.push('<li>' + fmtInt(res.stats.scrubHits) + ' names, numbers or emails in notes were hidden.</li>');
       Object.keys(res.stats.unparsed).forEach(function (k) {
-        items.push('<li class="warn-t">Column <b>' + esc(k) + '</b>: the tool cannot read ' + fmtInt(res.stats.unparsed[k]) + ' values and wrote them as [?]. Check the format of those values.</li>');
+        items.push('<li class="warn-t">Column <b>' + esc(k) + '</b>: the tool cannot read ' + fmtInt(res.stats.unparsed[k]) + ' values. It wrote [?] for them. Check the format of those values.</li>');
       });
       box.innerHTML = '<ul class="facts">' + items.join('') + '</ul>';
     }
@@ -1198,9 +1215,9 @@
     var res = state.result, k = res && res.version === state.version ? res.k : null;
     if (k && k.rowsBelow) red++;
     var parts = [];
-    if (red) parts.push('<b class="err-t">' + red + (red === 1 ? ' warning' : ' warnings') + '</b>');
-    if (amber) parts.push('<b class="warn-t">' + amber + (amber === 1 ? ' column' : ' columns') + ' to read yourself</b>');
-    el.innerHTML = '<p class="msg ' + (red ? 'err' : (amber ? 'warn' : 'ok')) + '">Risk check: ' + (parts.length ? parts.join(', ') : 'no warnings so far') +
+    if (red) parts.push('<b class="err-t">' + red + (red === 1 ? ' red item' : ' red items') + '</b>');
+    if (amber) parts.push('<b class="warn-t">' + amber + (amber === 1 ? ' yellow item' : ' yellow items') + ' to read yourself</b>');
+    el.innerHTML = '<p class="msg ' + (red ? 'err' : (amber ? 'warn' : 'ok')) + '">Risk check: ' + (parts.length ? parts.join(' and ') : 'no problems found so far') +
       '. <button type="button" class="link" data-goto="p-risk">Open Risk check</button></p>';
     $('[data-goto]', el).addEventListener('click', function () { showTab('p-risk', true); });
     var tab = $('#tab-risk');
@@ -1211,48 +1228,48 @@
   function colList(list) { return list.map(function (c) { return '<b>' + esc(c.header) + '</b>'; }).join(', '); }
   function riskWarningsHtml(d) {
     var shiftUsed = state.cols.some(function (c) { return c.status === 'mask' && c.strategy === 'shift'; });
-    var h = '<section class="card"><h3>Personal columns set to Keep</h3>';
-    h += d.personalAccepted.length ? '<p class="msg err">These columns can hold personal data but are set to Keep: ' + colList(d.personalAccepted) + '. Change them to Mask or Remove.</p>'
-      : '<p class="msg ok">No personal column is set to Keep.</p>';
-    if (d.partialDates.length) h += '<p class="msg err">Hide part on ' + colList(d.partialDates) + ' still shows the month or day. Keep the year only, or choose Change to a range or group.</p>';
-    if (d.weakPartial.length) h += '<p class="msg err">The name start kept in ' + colList(d.weakPartial) + ' is longer than 2 characters and can identify a person.</p>';
-    if (shiftUsed && state.session.shiftMode === 'file') h += '<p class="msg warn">Shift dates uses one shift for the whole file. This choice is less safe. Anyone who knows one real date can work out every other date. Choose a different shift for each row, unless the order of dates across rows must stay the same.</p>';
+    var h = '<section class="card"><h3>Personal data still in the file</h3>';
+    h += d.personalAccepted.length ? '<p class="msg err">These columns can have personal data, but you chose Keep: ' + colList(d.personalAccepted) + '. Go back and choose Mask or Remove.</p>'
+      : '<p class="msg ok">Good. No column with personal data is set to Keep.</p>';
+    if (d.partialDates.length) h += '<p class="msg err">The column ' + colList(d.partialDates) + ' still shows the month or day. Show only the year, or choose “Replace with a group or range”.</p>';
+    if (d.weakPartial.length) h += '<p class="msg err">The first letters of the names in ' + colList(d.weakPartial) + ' can identify a person. Show 2 letters or fewer.</p>';
+    if (shiftUsed && state.session.shiftMode === 'file') h += '<p class="msg warn">All dates move by the same number of days. Someone who knows one real date can work out the others. Choose “Each row moves by a different number of days”, unless the order of dates must stay the same.</p>';
     return h + '</section>';
   }
   function riskReadHtml(d) {
-    var h = '<section class="card"><h3>Columns to read yourself</h3>';
-    h += d.freeText.length ? '<p class="msg warn">Read these columns yourself before you share: ' + colList(d.freeText) + '. Notes often mention names, phone numbers or personal matters. Mask names in notes misses nicknames and other spellings.</p>'
-      : '<p class="msg ok">No notes columns found.</p>';
-    if (d.review.length) h += '<p class="msg warn">The tool cannot tell what these columns hold, for example text in Chinese, Arabic or Thai: ' + colList(d.review) + '. They are set to Keep. Check them yourself. Names can hide there.</p>';
+    var h = '<section class="card"><h3>Text to read yourself</h3>';
+    h += d.freeText.length ? '<p class="msg warn">Read these columns before you share the file: ' + colList(d.freeText) + '. Free text often has names, phone numbers or private details. The tool misses nicknames and other spellings.</p>'
+      : '<p class="msg ok">No free-text columns found.</p>';
+    if (d.review.length) h += '<p class="msg warn">The tool cannot tell what is in these columns (for example Chinese, Arabic or Thai text): ' + colList(d.review) + '. You chose Keep. Read them yourself. Names can hide there.</p>';
     return h + '</section>';
   }
   function riskGroupResultHtml(res, k) {
-    if (!(res && res.version === state.version)) return '<p class="help">The result uses the masked data and shows after you press the button.</p>';
-    if (!k) return '<p class="msg info">No columns are ticked to combine.</p>';
+    if (!state.cols.some(function (c) { return c.qi && c.status !== 'hide'; })) return '<p class="msg info">Tick at least one detail to run this check.</p>';
+    if (!(res && res.version === state.version)) return '<p class="help">Checking…</p>';
+    if (!k) return '<p class="msg info">Tick at least one detail to run this check.</p>';
     var ok = k.rowsBelow === 0;
-    var h = '<p class="msg ' + (ok ? 'ok' : 'err') + '">' + esc(k.qiNames.join(' + ')) + '. ' + fmtInt(k.groups) + ' groups. Smallest group: ' + k.minSize + (k.minSize === 1 ? ' person. ' : ' people. ') +
-      fmtInt(k.unique) + ' people are alone in their group. ' + (ok ? 'Every group has at least ' + k.k + ' people.' :
-        fmtInt(k.rowsBelow) + ' people are in groups of fewer than ' + k.k + '. Merge small groups: for example, join small grades or units, use wider age groups, or take one column out of the combination.') + '</p>';
+    var h = ok
+      ? '<p class="msg ok">Good. Every mix is shared by at least ' + k.k + ' people. The tool found ' + fmtInt(k.groups) + ' mixes. The smallest one has ' + fmtInt(k.minSize) + (k.minSize === 1 ? ' person.' : ' people.') + '</p>'
+      : '<p class="msg err"><b>' + fmtInt(k.rowsBelow) + (k.rowsBelow === 1 ? ' person' : ' people') + '</b> can be recognised, because their mix is shared by fewer than ' + k.k + ' people. ' +
+        fmtInt(k.unique) + (k.unique === 1 ? ' is' : ' are') + ' alone in their mix. To fix this, use wider groups (for example 10-year age groups), join small groups, or untick a detail.</p>';
     if (k.small.length) {
-      h += '<div class="table-wrap small"><table class="grid"><caption>Smallest groups (up to 15)</caption><thead><tr>' + k.qiNames.map(function (n) { return '<th scope="col">' + esc(n) + '</th>'; }).join('') + '<th scope="col">Rows</th></tr></thead><tbody>';
-      k.small.slice(0, 15).forEach(function (g) { h += '<tr>' + g.values.map(function (v) { return '<td>' + esc(trunc(v, 40)) + '</td>'; }).join('') + '<td>' + g.n + '</td></tr>'; });
+      h += '<div class="table-wrap small"><table class="grid"><caption>Mixes shared by the fewest people</caption><thead><tr>' + k.qiNames.map(function (n) { return '<th scope="col">' + esc(n) + '</th>'; }).join('') + '<th scope="col">People</th></tr></thead><tbody>';
+      k.small.slice(0, 15).forEach(function (g) { h += '<tr>' + g.values.map(function (v) { return '<td dir="auto">' + esc(trunc(v, 40)) + '</td>'; }).join('') + '<td>' + g.n + '</td></tr>'; });
       h += '</tbody></table></div>';
     }
     return h;
   }
   function riskGroupHtml() {
     var res = state.result, k = res && res.version === state.version ? res.k : null;
-    var h = '<section class="card"><h3>Can someone be picked out?</h3>';
-    h += '<p class="help">If only one woman works in the Legal team, gender and team are enough to show who she is. This check finds groups that small.</p>';
-    h += '<div class="row-fields"><div class="field"><label for="k-val">Smallest group size</label><input type="number" id="k-val" min="2" step="1" value="' + state.k + '" aria-describedby="k-val-h">' +
-      '<p class="help" id="k-val-h">Each group must hold at least this many people. Usually 5.</p></div>';
-    h += '<fieldset class="field qi-list"><legend>Columns to combine</legend><div class="qi-grid">';
+    var h = '<section class="card"><h3>Can someone be recognised?</h3>';
+    h += '<p class="help">A name is not the only way to find a person. A mix of details can point to one person too. For example, only one person in the file can work in Finance and be 50 to 54 years old. This check counts how many people share each mix.</p>';
+    h += '<fieldset class="field qi-list"><legend>Details to mix</legend><div class="qi-grid">';
     state.cols.filter(function (c) { return c.status !== 'hide'; }).forEach(function (c) {
       h += '<label class="qi-item"><input type="checkbox" data-qi-col="' + c.idx + '"' + (c.qi ? ' checked' : '') + '> ' + esc(c.outName) + '</label>';
     });
-    h += '</div><p class="help">Tick columns such as grade, division, gender and age. The check uses the masked values.</p></fieldset></div>';
-    h += '<button type="button" class="btn" id="k-run">Run the check again</button>' + riskGroupResultHtml(res, k);
-    return h + '</section>';
+    h += '</div><p class="help">The tool ticked details that often identify people. Tick or untick to change. The check uses the masked values.</p></fieldset>';
+    h += '<div class="field"><label for="k-val">Every mix must be shared by at least this many people</label><input type="number" id="k-val" min="2" step="1" value="' + state.k + '" aria-describedby="k-val-h"><p class="help" id="k-val-h">Most teams use 5.</p></div>';
+    return h + riskGroupResultHtml(res, k) + '</section>';
   }
   function bindRisk(box) {
     $('#k-val').addEventListener('change', function (e) {
@@ -1268,17 +1285,14 @@
         rerenderCard(c); renderRisk(); renderRiskSummary();
       });
     });
-    $('#k-run').addEventListener('click', function () {
-      freshResult().then(function () { renderRisk(); renderRiskSummary(); $('#k-run').focus(); });
-    });
   }
   function renderRisk() {
     var box = $('#risk-body');
     if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
     var d = riskData(), v = state.validation;
     var h = riskWarningsHtml(d) + riskReadHtml(d) + riskGroupHtml();
-    if (v.missingRequired.length) h += '<section class="card"><h3>Settings file check</h3><p class="msg warn">Columns in the settings file but not in this file: ' + esc(v.missingRequired.join(', ')) + '. Check that this is the right file.</p></section>';
-    h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg warn">Masking does not change how your organisation classifies the file. Follow its rules before you share data.</p></section>';
+    if (v.missingRequired.length) h += '<section class="card"><h3>Settings file</h3><p class="msg warn">These columns are in the settings file but not in this file: ' + esc(v.missingRequired.join(', ')) + '. Check that you chose the right file.</p></section>';
+    h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg warn">Masking does not change how your organisation classifies the file. Follow its rules before you share it.</p></section>';
     box.innerHTML = h;
     bindRisk(box);
   }
@@ -1294,15 +1308,15 @@
         return Bridge.call({ type: 'open', slot: 'key', name: f.name, buf: buf });
       }).then(function (res) {
         var k = L.parseKeyRows(res.rows);
-        if (!k.key.size) throw new Error('the file holds no codes');
+        if (!k.key.size) throw new Error('the file has no codes');
         restore.key = k; restore.keyName = f.name;
-        var info = 'Match file <b>' + esc(f.name) + '</b> is open: ' + fmtInt(k.key.size) + ' codes, prefixes ' + esc(k.prefixes.join(', ')) + '.';
-        if (k.meta.shifted_date_columns) info += ' Date shifts are available for: ' + esc(k.meta.shifted_date_columns) + '.';
+        var info = 'Opened match file <b>' + esc(f.name) + '</b>. It has ' + fmtInt(k.key.size) + ' codes.';
+        if (k.meta.shifted_date_columns) info += ' It can also move dates back in: ' + esc(k.meta.shifted_date_columns) + '.';
         setMsg(msg, 'ok', info);
         updateRestoreBtn();
       }).catch(function (err) {
         restore.key = null;
-        setMsg(msg, 'err', 'The tool cannot read match file <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Choose the MATCH-FILE-….csv file you downloaded in step 3.');
+        setMsg(msg, 'err', 'The tool cannot read <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Choose the MATCH-FILE file you downloaded in step 3.');
         updateRestoreBtn();
       });
     });
@@ -1322,16 +1336,16 @@
         return Bridge.call({ type: 'open', slot: 'restore', name: f.name, buf: buf });
       }).then(function (res) {
         restore.table = res.rows; restore.tableName = f.name;
-        setMsg(msg, 'ok', 'File <b>' + esc(f.name) + '</b> is open: ' + fmtInt(Math.max(0, res.rows.length - 1)) + ' data rows' + (res.sheets.length > 1 ? ' from the first sheet, “' + esc(res.sheet) + '”' : '') + '.');
+        setMsg(msg, 'ok', 'Opened <b>' + esc(f.name) + '</b>. It has ' + fmtInt(Math.max(0, res.rows.length - 1)) + ' rows' + (res.sheets.length > 1 ? ' on the first sheet, “' + esc(res.sheet) + '”' : '') + '.');
         updateRestoreBtn();
       }).catch(function (err) {
         restore.table = null;
-        setMsg(msg, 'err', 'The tool cannot read <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Check that the file is not damaged or password-protected, then try again.');
+        setMsg(msg, 'err', 'The tool cannot read <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Check that the file is not damaged and has no password. Then try again.');
         updateRestoreBtn();
       });
     });
     $('#restore-btn').addEventListener('click', doRestore);
-    $('#restore-copy').addEventListener('click', function () { copyText($('#restore-output').value, 'Restored text copied.'); });
+    $('#restore-copy').addEventListener('click', function () { copyText($('#restore-output').value, 'Copied the restored text.'); });
     $('#restore-dl-txt').addEventListener('click', function () { download('restored-text-' + stamp() + '.txt', '﻿' + $('#restore-output').value, 'text/plain;charset=utf-8'); });
     $('#restore-dl-csv').addEventListener('click', function () {
       if (restore.out) download(restoreBase() + '-' + stamp() + '.csv', '﻿' + toCSV(restore.out, true), 'text/csv;charset=utf-8');
@@ -1356,15 +1370,15 @@
     return h + '</tbody></table>';
   }
   function restoreMessage(stats, k, table) {
-    var html = fmtInt(stats.replaced) + ' codes changed back to real values.';
-    if (stats.unknown.size) html += '<br>Codes not in the match file (left unchanged): ' + esc(Array.from(stats.unknown).slice(0, 20).join(', ')) + (stats.unknown.size > 20 ? ' …' : '') + '. Check that the match file comes from the same download.';
+    var html = fmtInt(stats.replaced) + ' codes were changed back to real values.';
+    if (stats.unknown.size) html += '<br>These codes are not in the match file, so they stay as they are: ' + esc(Array.from(stats.unknown).slice(0, 20).join(', ')) + (stats.unknown.size > 20 ? ' …' : '') + '. Check that you chose the match file from the same download.';
     if (table) {
       var fileRun = /masked-data-([A-Z0-9]{4})-/.exec(restore.tableName || '');
-      if (fileRun && k.meta.run_id && fileRun[1] !== k.meta.run_id) html += '<br><b>The file name shows run ' + esc(fileRun[1]) + ' but the match file is from run ' + esc(k.meta.run_id) + '.</b> Check that you chose the right match file.';
-      if (table.doDates && table.rowMode && !k.meta.anchor_column) html += '<br>This match file lines up dates by row number. The file must keep the original row order.';
-      if (stats.noDateCols) html += '<br>No shifted date columns found in this file. The column names may have changed.';
-      if (stats.noOffset) html += '<br>' + stats.noOffset + ' rows have no date shift in the match file (column ' + esc(k.meta.anchor_column || 'row number') + ' does not match). Dates in those rows are left as they are.';
-      if (stats.dateFails) html += '<br>The tool cannot read ' + stats.dateFails + ' date values and left them as they are.';
+      if (fileRun && k.meta.run_id && fileRun[1] !== k.meta.run_id) html += '<br><b>The file name shows run ' + esc(fileRun[1]) + ', but the match file is from run ' + esc(k.meta.run_id) + '.</b> Check that you chose the right match file.';
+      if (table.doDates && table.rowMode && !k.meta.anchor_column) html += '<br>This match file finds each date by row number. The rows must stay in the original order.';
+      if (stats.noDateCols) html += '<br>The tool found no date columns to move back. The column names can have changed.';
+      if (stats.noOffset) html += '<br>' + stats.noOffset + ' rows have no date shift in the match file (column ' + esc(k.meta.anchor_column || 'row number') + ' does not match). Their dates stay as they are.';
+      if (stats.dateFails) html += '<br>The tool cannot read ' + stats.dateFails + ' dates. They stay as they are.';
     }
     return html;
   }
@@ -1382,7 +1396,7 @@
       $('#restore-table-out').hidden = false;
     }
     setMsg($('#restore-msg'), stats.unknown.size ? 'warn' : 'ok', restoreMessage(stats, k, table));
-    announce(stats.replaced + ' codes restored.');
+    announce(stats.replaced + ' codes were changed back.');
   }
 
   // ---------- init ----------

@@ -2,9 +2,10 @@
 
 ## Rules that protect users
 
-- The page must make no network request. A Content-Security-Policy blocks them, and tests check it. Do not add a library that fetches anything.
-- Never put real personal data in a sample, a test, an issue, or a screenshot. `samples/` holds fictional data only.
-- Keep UI text in plain English. Say each hint once. A hint that repeats on every card goes in the legend at the top of the page instead.
+- The page must make no network request. A Content-Security-Policy blocks them. Tests check it. Never add a library that fetches data.
+- Never put real personal data in a sample, a test, an issue or a screenshot. `samples/` has fictional data only.
+- Write every message in plain English. Use short sentences and common words. Readers come from all over the world.
+- Say each hint once. A hint that repeats on every card belongs in the legend.
 
 ## Set up
 
@@ -15,34 +16,34 @@ npx playwright install chromium
 
 ## Change the code
 
-1. Edit files in `src/`. Do not edit `index.html` by hand.
+1. Modify files in `src/`. Never modify `index.html` by hand.
 2. Run `npm run build`. Commit the rebuilt `index.html` with your change. CI fails when it is out of date.
-3. Add a check to `tests/logic.test.mjs` for a change in detection or masking. Add one to `tests/e2e.mjs` only for a change that affects privacy, the match file or restore. Keep the tests few.
+3. Add a check to `tests/logic.test.mjs` for a change in detection or masking. Add one to `tests/e2e.mjs` only for a change in privacy, the match file or restore. Keep the tests few.
 4. Run `npm test`. Both tests must pass.
 
 | File | Holds |
 |---|---|
 | `src/shell.html` | Page structure, styles, Help text |
-| `src/app.js` | User interface and flow |
-| `src/logic.js` | Detection, masking, restore. No page access |
-| `src/core.js` | File reading and writing, runs in a worker |
+| `src/app.js` | Screens and flow |
+| `src/logic.js` | Detection, masking, restore. No page access. |
+| `src/core.js` | File reading and writing. Runs in a worker. |
 
 ## Pull requests
 
-- Keep one change per pull request.
-- Describe what the user sees before and after. Add a screenshot of the fictional sample when the screen changes.
-- Report a bug without attaching the file that triggers it. Describe the column layout and the value patterns instead.
+- Make one change per pull request.
+- Say what the user sees before and after. Add a screenshot of the fictional sample when a screen changes.
+- To report a bug, never attach the file that causes it. Describe the column layout and the value patterns.
 
 ## Releases
 
 The version comes from the git tag. Nothing in the repo holds it.
 
-1. Make sure `main` is green.
-2. Push a tag, for example `git tag v1.1.0 && git push origin v1.1.0`.
-3. The Release workflow runs the tests on Linux, macOS and Windows. It builds `index.html` with the tag as its version, publishes a GitHub Release with `index.html` and `SHA256SUMS`, and deploys that file to GitHub Pages.
+1. Check that `main` is green.
+2. Push a tag: `git tag v1.1.0 && git push origin v1.1.0`.
+3. The Release workflow runs the tests on Linux, macOS and Windows. It builds `index.html` with the tag as its version. It publishes a GitHub Release with `index.html` and `SHA256SUMS`. It deploys the same file to GitHub Pages.
 
-The `index.html` in `main` is a development build and says so in its footer. Build a stamped copy yourself with `DM_VERSION=1.1.0 python3 build.py`.
+The `index.html` on `main` is a development build. To stamp a copy yourself, run `DM_VERSION=1.1.0 python3 build.py`.
 
 ## Reporting problems
 
-Use the issue templates. Never attach real personal data. Report a leak of original values through a private security report (see `SECURITY.md`).
+Use the issue templates. Never attach real personal data. Report a leak of original values through a private security report. See `SECURITY.md`.

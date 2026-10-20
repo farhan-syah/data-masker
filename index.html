@@ -189,9 +189,11 @@ dialog { border: 1px solid var(--border); border-radius: var(--radius); max-widt
 dialog::backdrop { background: rgba(24, 24, 27, .55); }
 dialog h2 { color: var(--danger); }
 .help-body section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-.help-body section > p, .help-body section > ul, .help-body section > ol { max-width: 90ch; }
 .stack > .card { margin-bottom: 16px; }
 .help-body li { margin: 3px 0; }
+.rows-summary { font-weight: 600; margin: 10px 0 2px; }
+.rows-pick .radio-line span.n { color: var(--muted); font-weight: 400; }
+.rows-extra { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; margin-top: 8px; }
 footer { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: .84rem; }
 footer .wrap { padding-top: 10px; padding-bottom: 10px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 @media print { .tabs-bar, footer, .btn { display: none; } }
@@ -246,16 +248,16 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <div class="wrap">
     <div class="brand">
       <svg width="36" height="36" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#2563EB"/><path d="M8 11h16M8 16h9M8 21h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
-      <div><h1>Data Masking Tool</h1><p>Mask personal data in a spreadsheet before you share it or use it with AI. Your file never leaves this computer.</p></div>
+      <div><h1>Data Masking Tool</h1><p>Hide personal data in a spreadsheet before you share it. Your file stays on this computer.</p></div>
     </div>
-    <span class="offline">Works without internet</span>
+    <span class="offline">Works offline</span>
   </div>
 </header>
 <div class="tabs-bar">
   <div class="wrap tabs" role="tablist" aria-label="Steps">
     <button type="button" role="tab" id="tab-load" aria-controls="p-load" aria-selected="true">1. Open file</button>
     <button type="button" role="tab" id="tab-columns" aria-controls="p-columns" aria-selected="false" tabindex="-1" data-needs-data>2. Columns</button>
-    <button type="button" role="tab" id="tab-export" aria-controls="p-export" aria-selected="false" tabindex="-1" data-needs-data>3. Check &amp; download</button>
+    <button type="button" role="tab" id="tab-export" aria-controls="p-export" aria-selected="false" tabindex="-1" data-needs-data>3. Preview &amp; download</button>
     <span class="sep" aria-hidden="true"></span>
     <button type="button" role="tab" id="tab-risk" aria-controls="p-risk" aria-selected="false" tabindex="-1" data-needs-data>Risk check<span class="count" hidden></span></button>
     <button type="button" role="tab" id="tab-restore" aria-controls="p-restore" aria-selected="false" tabindex="-1">Restore names</button>
@@ -268,12 +270,12 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
 
 <!-- 1. Load -->
 <section role="tabpanel" id="p-load" aria-labelledby="tab-load">
-  <h2>1. Open file</h2>
-  <p class="lead">Mask the personal data in a spreadsheet, then share it safely. Three steps:</p>
-  <ol class="steps"><li><b>Open</b> your CSV or Excel file.</li><li><b>Check</b> each column. The tool suggests Mask, Remove or Keep.</li><li><b>Download</b> the masked data. Keep the private match file to restore names later.</li></ol>
+  <h2>1. Open your file</h2>
+  <p class="lead">Hide personal data in a spreadsheet before you share it with people or AI tools.</p>
+  <ol class="steps"><li><b>Open</b> your CSV or Excel file.</li><li><b>Choose</b> what happens to each column.</li><li><b>Download</b> a safe copy.</li></ol>
   <div class="drop" id="drop-zone">
-    <p class="field-label">Data file</p>
-    <p class="help" id="file-help">CSV, Excel (.xlsx, .xls) or .ods. Drag the file into this box, or press the button.</p>
+    <p class="field-label">Your file</p>
+    <p class="help" id="file-help">Drag a CSV or Excel file here, or choose one. The file stays on this computer.</p>
     <span class="file-pick"><input type="file" id="file-input" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xlsb,.xls,.ods" aria-describedby="file-help"><label for="file-input" class="btn primary">Choose file…</label></span> <button type="button" class="btn" id="try-sample">Try a sample file</button>
   </div>
   <div id="load-msg" class="msg" hidden></div>
@@ -285,155 +287,147 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
         <select id="enc-select" aria-describedby="enc-help" style="max-width:360px"></select>
         <p class="help" id="enc-help"></p>
       </div>
-      <div class="field check"><input type="checkbox" id="no-header" aria-describedby="no-header-h"><label for="no-header">My file has no header row</label><p class="help" id="no-header-h">Tick this when the first row holds data, not column names.</p></div>
       <div id="sheet-wrap" class="field" hidden>
-        <label for="sheet-select">Sheet</label>
-        <select id="sheet-select" aria-describedby="sheet-h" style="max-width:360px"></select>
-        <p class="help" id="sheet-h">Choose the sheet that holds the data list.</p>
+        <label for="sheet-select">Which sheet?</label>
+        <select id="sheet-select" style="max-width:360px"></select>
       </div>
+      <div class="field check"><input type="checkbox" id="no-header"><label for="no-header">The first row is data, not column names</label></div>
       <fieldset class="field">
-        <legend>Header row</legend>
-        <p class="help">Choose the row that holds the column names. Rows above it are ignored.</p>
+        <legend>Which row has the column names?</legend>
+        <p class="help">The tool ignores the rows above it.</p>
         <div class="table-wrap" id="hdr-table"></div>
       </fieldset>
-      <h3>File check</h3>
+      <h3>About this file</h3>
       <ul id="validation" class="facts"></ul>
-      <button type="button" id="to-columns" class="btn primary">Next: set up columns</button>
+      <button type="button" id="to-columns" class="btn primary">Next: choose what happens to each column</button>
     </div>
   </div>
 </section>
 
 <!-- 2. Columns -->
 <section role="tabpanel" id="p-columns" aria-labelledby="tab-columns" hidden>
-  <h2>2. Set up columns</h2>
-  <p class="lead">The tool suggests a choice for each column from its name and values. Check every suggestion. Each card shows how the values change.</p>
+  <h2>2. Choose what happens to each column</h2>
+  <p class="lead">The tool suggests a choice for each column. Check them all.</p>
   <div class="legend">
-    <p><b>Mask</b>: change the values so no one can be identified. <b>Remove</b>: drop the column from the download. <b>Keep</b>: leave the values as they are.</p>
+    <p><b>Mask</b>: replace the values so nobody can be recognised. <b>Remove</b>: leave the column out. <b>Keep</b>: copy the values as they are.</p>
   </div>
   <details class="card">
-    <summary>Save these settings for the same kind of file next time</summary>
-    <p class="help">A saved-settings file holds your choice for each column. It holds no data. Column names that differ only in spaces or punctuation, such as “EMPLOYEE NO.” and “Employee No”, count as the same name.</p>
+    <summary>Save or load your choices</summary>
+    <p class="help">Save your choices to use again with a similar file. The settings file has no data from your file.</p>
     <div class="preset-grid">
       <div>
-        <div class="field"><label for="preset-domain">Settings name</label><input type="text" id="preset-domain" aria-describedby="preset-domain-h" placeholder="example: monthly_staff_list"><p class="help" id="preset-domain-h">A short name for this kind of file.</p></div>
-        <div class="field"><label for="preset-desc">Description</label><input type="text" id="preset-desc" aria-describedby="preset-desc-h" placeholder="example: Monthly staffing report"><p class="help" id="preset-desc-h">One sentence about where the file comes from.</p></div>
+        <div class="field"><label for="preset-domain">Name for these settings</label><input type="text" id="preset-domain" placeholder="Example: monthly_staff_list"></div>
+        <div class="field"><label for="preset-desc">Note (optional)</label><input type="text" id="preset-desc" placeholder="Example: Monthly staff report"></div>
         <button type="button" class="btn" id="preset-save">Save settings</button>
       </div>
       <div>
-        <p class="field-label">Use saved settings</p>
-        <p class="help" id="preset-load-h">Choose a settings file you saved before. Its choices apply to columns with the same name.</p>
+        <p class="field-label">Load saved settings</p>
+        <p class="help" id="preset-load-h">Choose a settings file you saved before. It applies to columns with the same name.</p>
         <span class="file-pick"><input type="file" id="preset-input" accept=".json,application/json" aria-describedby="preset-load-h"><label for="preset-input" class="btn">Choose settings file…</label></span>
       </div>
     </div>
     <div id="preset-msg" class="msg" hidden></div>
   </details>
   <details class="card" id="tidy-details">
-    <summary>Tidy and date options <span class="help" id="tidy-summary"></span></summary>
-    <p class="help">Tidying makes the same name always get the same code.</p>
+    <summary>Dates and cleaning <span class="help" id="tidy-summary"></span></summary>
+    <p class="help">These options clean the values before the tool masks them.</p>
   <div class="cols-2">
   <div class="card">
     <div class="field">
-      <label for="san-date">Date format</label>
+      <label for="san-date">Show dates as</label>
       <select id="san-date" aria-describedby="san-date-h">
-        <option value="off">Keep the original format</option>
-        <option value="iso">YYYY-MM-DD (example 1977-01-23)</option>
-        <option value="dmy">DD/MM/YYYY (example 23/01/1977)</option>
-        <option value="mdy">MM/DD/YYYY (example 01/23/1977)</option>
+        <option value="off">The same as in the file</option>
+        <option value="iso">1977-01-23 (year-month-day)</option>
+        <option value="dmy">23/01/1977 (day/month/year)</option>
+        <option value="mdy">01/23/1977 (month/day/year)</option>
       </select>
-      <p class="help" id="san-date-h">Every date column uses one format. Dates that Excel stored as numbers always become normal dates.</p>
+      <p class="help" id="san-date-h">All date columns use the same format.</p>
     </div>
     <div class="field">
-      <label for="san-order">Read 03/04/2020 as</label>
+      <label for="san-order">A date like 03/04/2020 means</label>
       <select id="san-order" aria-describedby="san-order-h">
-        <option value="dmy">Day first (3 April 2020)</option>
-        <option value="mdy">Month first (March 4, 2020)</option>
+        <option value="dmy">3 April 2020 (day first)</option>
+        <option value="mdy">March 4, 2020 (month first)</option>
       </select>
-      <p class="help" id="san-order-h">The tool picks this from your dates. Change it when it is wrong.</p>
+      <p class="help" id="san-order-h">The tool guessed this from your dates. Change it if it is wrong.</p>
     </div>
-    <div class="field check"><input type="checkbox" id="san-trim" aria-describedby="san-trim-h"><label for="san-trim">Remove extra spaces</label><p class="help" id="san-trim-h">Remove spaces at the ends of a value and double spaces inside it.</p></div>
-    <div class="field check"><input type="checkbox" id="san-normHeader" aria-describedby="san-normHeader-h"><label for="san-normHeader">Tidy column names</label><p class="help" id="san-normHeader-h">Example: “EMPLOYEE NO.” becomes “employee_no” and “Date of Birth” becomes “date_of_birth”.</p></div>
-    <div class="field check"><input type="checkbox" id="san-ctrl" aria-describedby="san-ctrl-h"><label for="san-ctrl">Remove hidden characters</label><p class="help" id="san-ctrl-h">Remove hidden characters, line breaks inside cells, and Excel leftovers such as _x000D_.</p></div>
-    <div class="field check"><input type="checkbox" id="san-empty" aria-describedby="san-empty-h"><label for="san-empty">Make empty values blank</label><p class="help" id="san-empty-h">Values such as N/A, -, null and NaN become empty cells.</p></div>
+    <div class="field check"><input type="checkbox" id="san-trim" aria-describedby="san-trim-h"><label for="san-trim">Remove extra spaces</label><p class="help" id="san-trim-h">At the start or end of a value, and double spaces.</p></div>
+    <div class="field check"><input type="checkbox" id="san-normHeader" aria-describedby="san-normHeader-h"><label for="san-normHeader">Make column names simple</label><p class="help" id="san-normHeader-h">Example: “Date of Birth” becomes “date_of_birth”.</p></div>
+    <div class="field check"><input type="checkbox" id="san-ctrl" aria-describedby="san-ctrl-h"><label for="san-ctrl">Remove hidden characters</label><p class="help" id="san-ctrl-h">Hidden characters and line breaks inside a cell.</p></div>
+    <div class="field check"><input type="checkbox" id="san-empty"><label for="san-empty">Treat N/A, null and - as empty</label></div>
   </div>
   <div class="card">
-    <h3>Shift dates</h3>
+    <h3>Move dates</h3>
     <fieldset class="field">
-      <legend>How to shift</legend>
-      <label class="radio-line"><input type="radio" name="shift-mode" value="row" aria-describedby="shift-row-h"> A different shift for each row (recommended)</label>
-      <p class="help" id="shift-row-h" style="margin-left:26px">Each row moves by its own random number of days. Intervals within a row stay exact, such as age at appointment.</p>
-      <label class="radio-line"><input type="radio" name="shift-mode" value="file" aria-describedby="shift-file-h"> One shift for the whole file</label>
-      <p class="help" id="shift-file-h" style="margin-left:26px">The order of dates across rows stays the same. One known real date reveals the shift for the whole file.</p>
+      <legend>How far to move dates</legend>
+      <label class="radio-line"><input type="radio" name="shift-mode" value="row" aria-describedby="shift-row-h"> Each row moves by a different number of days (safer)</label>
+      <p class="help" id="shift-row-h" style="margin-left:26px">Dates in the same row stay the same distance apart.</p>
+      <label class="radio-line"><input type="radio" name="shift-mode" value="file" aria-describedby="shift-file-h"> All rows move by the same number of days</label>
+      <p class="help" id="shift-file-h" style="margin-left:26px">The order of dates in the file stays the same.</p>
     </fieldset>
-    <p class="msg warn" id="shift-file-warn" hidden>This choice is less safe. Anyone who knows one real date can work out every other date.</p>
-    <p class="msg info" id="shift-unused" hidden>No column uses Shift dates now. These choices apply only to columns whose masking method is Shift dates.</p>
+    <p class="msg warn" id="shift-file-warn" hidden>This is less safe. Someone who knows one real date can work out all the others.</p>
+    <p class="msg info" id="shift-unused" hidden>No column uses “Move dates”. These options do nothing now.</p>
     <p class="help" id="shift-info"></p>
-    <button type="button" class="btn" id="new-shift" aria-describedby="new-shift-h">Make new shifts</button>
-    <p class="help" id="new-shift-h">Use new shifts for another file, so patterns do not repeat. An older match file then no longer restores the dates.</p>
+    <button type="button" class="btn" id="new-shift" aria-describedby="new-shift-h">Choose new random shifts</button>
+    <p class="help" id="new-shift-h">Use this for a different file. Then you must download the match file again.</p>
   </div>
   </div>
   </details>
-  <div class="toolbar"><span id="col-count" class="help" aria-live="polite"></span><button type="button" class="btn" id="reset-sug">Go back to the suggestions</button></div>
+  <div class="toolbar"><span id="col-count" class="help" aria-live="polite"></span><button type="button" class="btn" id="reset-sug">Reset to suggestions</button></div>
   <div class="toolbar" id="col-tools" hidden>
     <label class="sr-only" for="col-filter">Find a column</label><input type="search" id="col-filter" placeholder="Find a column" style="max-width:260px">
     <label class="sr-only" for="col-show">Show</label>
-    <select id="col-show" style="max-width:260px"><option value="all">Show all columns</option><option value="mask">Only columns to mask</option><option value="accept">Only columns to keep</option><option value="hide">Only columns to remove</option><option value="attention">Only columns that need a look</option></select>
+    <select id="col-show" style="max-width:260px"><option value="all">All columns</option><option value="mask">Columns to mask</option><option value="accept">Columns to keep</option><option value="hide">Columns to remove</option><option value="attention">Columns to look at</option></select>
     <span id="col-shown" class="help" aria-live="polite"></span>
   </div>
   <div id="col-list"></div>
-  <div class="nav-row"><button type="button" class="btn" data-goto="p-load">Back</button><button type="button" class="btn primary" data-goto="p-export">Next: check &amp; download</button></div>
+  <div class="nav-row"><button type="button" class="btn" data-goto="p-load">Back</button><button type="button" class="btn primary" data-goto="p-export">Next: preview and download</button></div>
 </section>
 
-<!-- 4. Preview and download -->
+<!-- 3. Preview and download -->
 <section role="tabpanel" id="p-export" aria-labelledby="tab-export" hidden>
-  <h2>3. Check &amp; download</h2>
-  <div class="cols-2">
-    <div class="card">
-      <div class="row-fields">
-        <fieldset class="field">
-          <legend>Rows to download</legend>
-          <label class="radio-line"><input type="radio" name="rows-mode" value="all"> All rows</label>
-          <label class="radio-line"><input type="radio" name="rows-mode" value="first"> First N rows</label>
-          <label class="radio-line"><input type="radio" name="rows-mode" value="random"> Random sample of N rows</label>
-          <p class="help">20 to 50 rows are usually enough for an AI tool.</p>
-        </fieldset>
-        <div>
-          <div class="field"><label for="rows-n">Number of rows (N)</label><input type="number" id="rows-n" min="1" step="1" aria-describedby="rows-n-h"><p class="help" id="rows-n-h">For first N rows and the random sample.</p></div>
-          <div class="field"><button type="button" class="btn" id="resample" aria-describedby="resample-h">Take a new sample</button><p class="help" id="resample-h">Pick a different set of random rows.</p></div>
-        </div>
-      </div>
+  <h2>3. Preview and download</h2>
+  <section class="card rows-pick" aria-labelledby="rows-h">
+    <h3 id="rows-h">Which rows do you want?</h3>
+    <fieldset class="field">
+      <legend class="sr-only">Which rows do you want?</legend>
+      <label class="radio-line"><input type="radio" name="rows-mode" value="all"> <span>All rows <span class="n" id="rows-total"></span></span></label>
+      <label class="radio-line"><input type="radio" name="rows-mode" value="first"> <span>The first rows</span></label>
+      <label class="radio-line"><input type="radio" name="rows-mode" value="random"> <span>Random rows</span></label>
+    </fieldset>
+    <div class="rows-extra" id="rows-extra">
+      <div class="field"><label for="rows-n">How many rows?</label><input type="number" id="rows-n" min="1" step="1" aria-describedby="rows-n-h"><p class="help" id="rows-n-h"></p></div>
+      <div class="field"><button type="button" class="btn" id="resample">Pick different random rows</button></div>
     </div>
-    <div class="card">
-      <div id="risk-summary"></div>
-      <button type="button" class="btn primary" id="gen-btn" aria-describedby="gen-h">Prepare masked data</button>
-      <p class="help" id="gen-h">Process all chosen rows and check that no one can be picked out.</p>
-      <label id="gen-progress-label" class="help" for="gen-progress" hidden>Processing…</label>
-      <progress id="gen-progress" max="1" value="0" hidden></progress>
-      <div id="export-status"></div>
-    </div>
-  </div>
+    <p class="rows-summary" id="rows-summary" aria-live="polite"></p>
+    <p class="help">To use with an AI tool, 20 to 50 rows are usually enough.</p>
+  </section>
   <section class="card" aria-labelledby="prev-h">
-    <h3 id="prev-h">Before and after preview</h3>
+    <h3 id="prev-h">Preview</h3>
     <p class="help" id="preview-note"></p>
-    <p class="help">Coloured cells have changed.</p>
-    <div class="field check"><input type="checkbox" id="prev-orig" checked aria-describedby="prev-orig-h"><label for="prev-orig">Show the original values</label><p class="help" id="prev-orig-h">The original shows below each changed value, struck through. Turn this off before you share a screenshot.</p></div>
+    <div class="field check"><input type="checkbox" id="prev-orig" checked aria-describedby="prev-orig-h"><label for="prev-orig">Show the original value under each change</label><p class="help" id="prev-orig-h">Turn this off before you take a screenshot.</p></div>
     <div class="table-wrap tall" id="preview" tabindex="0" aria-label="Preview table, scrollable"></div>
   </section>
   <section class="card" aria-labelledby="dl-h">
-    <h3 id="dl-h" class="sr-only">Download</h3>
+    <h3 id="dl-h">Download</h3>
+    <div id="risk-summary"></div>
+    <label id="gen-progress-label" class="help" for="gen-progress" hidden>Working…</label>
+    <progress id="gen-progress" max="1" value="0" hidden></progress>
+    <div id="export-status"></div>
     <div class="export-grid">
       <div>
         <h3>Column names only (safest)</h3>
-        <p class="help">Column names, data types and one masked example. No data rows.</p>
+        <p class="help">A list of the columns, their types and one masked example. It has no rows from your file.</p>
         <div class="btn-row"><button type="button" class="btn" id="copy-schema">Copy column names</button><button type="button" class="btn" id="dl-schema">Download column names</button></div>
       </div>
       <div>
         <h3>Masked data</h3>
-        <p class="help">Check the Risk check tab, then follow your organisation's rules before you share this file.</p>
+        <p class="help">Open Risk check first. Then follow your organisation's rules.</p>
         <div class="btn-row"><button type="button" class="btn" id="dl-csv">Download CSV</button><button type="button" class="btn" id="dl-xlsx">Download Excel</button><button type="button" class="btn" id="copy-data">Copy as text</button></div>
       </div>
       <div class="secret">
         <h3>Match file (keep private)</h3>
-        <p class="help">Links each code to the real value. Keep it private. A box asks you to confirm before it downloads.</p>
+        <p class="help">It turns codes back into real names. Never share it.</p>
         <button type="button" class="btn danger" id="dl-key">Download match file</button>
       </div>
     </div>
@@ -445,50 +439,50 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
 <!-- Risk -->
 <section role="tabpanel" id="p-risk" aria-labelledby="tab-risk" hidden>
   <h2>Risk check</h2>
-  <p class="lead">Read these warnings before you share any file. Fix every red warning. Check every yellow warning yourself.</p>
+  <p class="lead">Check these before you share the file. Fix every red item. Read every yellow item yourself.</p>
   <div id="risk-body"></div>
 </section>
 
 <!-- Restore -->
 <section role="tabpanel" id="p-restore" aria-labelledby="tab-restore" hidden>
   <h2>Restore names</h2>
-  <p class="lead">Change the codes in an AI answer, such as PERSON_001, back to the real names. This work happens on this computer only.</p>
+  <p class="lead">Turn the codes in an AI answer, such as PERSON_001, back into real names. Everything stays on this computer.</p>
   <div class="stack">
     <div class="card">
-      <h3>A. Match file</h3>
-      <p class="help" id="key-in-h">The MATCH-FILE-….csv file you downloaded in step 3.</p>
+      <h3>1. Choose the match file</h3>
+      <p class="help" id="key-in-h">Use the MATCH-FILE file you downloaded in step 3.</p>
       <span class="file-pick"><input type="file" id="key-input" accept=".csv,.xlsx,.xls" aria-describedby="key-in-h"><label for="key-input" class="btn">Choose match file…</label></span>
       <div id="key-msg" class="msg" hidden></div>
     </div>
     <div class="card">
       <fieldset class="field">
-        <legend>B. AI answer that contains codes</legend>
-        <label class="radio-line"><input type="radio" name="restore-src" value="text" checked> Paste the AI answer as text</label>
-        <label class="radio-line"><input type="radio" name="restore-src" value="file"> Open a CSV or Excel file</label>
+        <legend>2. What do you want to restore?</legend>
+        <label class="radio-line"><input type="radio" name="restore-src" value="text" checked> Text that I paste</label>
+        <label class="radio-line"><input type="radio" name="restore-src" value="file"> A CSV or Excel file</label>
       </fieldset>
       <div id="src-text" class="field">
-        <label for="restore-text">Text from the AI</label>
+        <label for="restore-text">Paste the AI answer here</label>
         <textarea dir="auto" id="restore-text" aria-describedby="restore-text-h" spellcheck="false"></textarea>
-        <p class="help" id="restore-text-h">Paste the AI answer here. Codes that are not in the match file stay unchanged.</p>
+        <p class="help" id="restore-text-h">Codes that are not in the match file stay as they are.</p>
       </div>
       <div id="src-file" hidden>
-        <p class="field-label">File that contains codes</p>
-        <p class="help" id="restore-file-h">A CSV or Excel file from the AI or from this tool's download. The first row holds the column names.</p>
+        <p class="field-label">Choose the file</p>
+        <p class="help" id="restore-file-h">Use a CSV or Excel file with the column names in the first row.</p>
         <span class="file-pick"><input type="file" id="restore-file" accept=".csv,.tsv,.txt,.xlsx,.xls" aria-describedby="restore-file-h"><label for="restore-file" class="btn">Choose file…</label></span>
         <div id="restore-file-msg" class="msg" hidden></div>
-        <div class="field check" style="margin-top:12px"><input type="checkbox" id="restore-dates" checked aria-describedby="restore-dates-h"><label for="restore-dates">Restore shifted dates</label><p class="help" id="restore-dates-h">Shifted dates go back to the original dates, using the match file.</p></div>
+        <div class="field check" style="margin-top:12px"><input type="checkbox" id="restore-dates" checked><label for="restore-dates">Also move shifted dates back</label></div>
       </div>
       <button type="button" class="btn primary" id="restore-btn" disabled>Restore names</button>
     </div>
   </div>
   <div id="restore-msg" class="msg" hidden></div>
   <div id="restore-text-out" class="card" hidden>
-    <p class="msg err">This result contains real data. Never paste it back into an AI tool.</p>
-    <div class="field"><label for="restore-output">Restored text</label><textarea dir="auto" id="restore-output" readonly aria-describedby="restore-output-h"></textarea><p class="help" id="restore-output-h">Copy it into a work document on this computer.</p></div>
+    <p class="msg err">This result has real data. Do not paste it into an AI tool.</p>
+    <div class="field"><label for="restore-output">Restored text</label><textarea dir="auto" id="restore-output" readonly></textarea></div>
     <div class="btn-row"><button type="button" class="btn" id="restore-copy">Copy</button><button type="button" class="btn" id="restore-dl-txt">Download .txt</button></div>
   </div>
   <div id="restore-table-out" class="card" hidden>
-    <p class="msg err">This result contains real data. Never upload it to an AI tool.</p>
+    <p class="msg err">This result has real data. Do not upload it to an AI tool.</p>
     <p class="help">Preview of the first 10 rows.</p>
     <div class="table-wrap small" id="restore-table-preview"></div>
     <div class="btn-row" style="margin-top:12px"><button type="button" class="btn" id="restore-dl-csv">Download CSV</button><button type="button" class="btn" id="restore-dl-xlsx">Download Excel</button></div>
@@ -499,100 +493,101 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
 <section role="tabpanel" id="p-help" aria-labelledby="tab-help" hidden class="help-body">
   <h2>Help</h2>
   <section>
-    <h3>Safest choice first</h3>
-    <p>Start with the safest choice. Move to the next level only when the AI truly needs it.</p>
-    <ol>
-      <li><b>Column names only.</b> Share the column names, data types and one masked example. This is enough for an AI to write an Excel formula.</li>
-      <li><b>A masked sample.</b> Share 20 to 50 masked rows only when the AI must see how the data is typed, and only when your organisation's rules allow it.</li>
-      <li><b>Totals by group.</b> Count totals on your own computer, for example the number of staff in each grade. Share the totals only. Each group must hold at least 5 people.</li>
-    </ol>
-    <p>Never share the real data rows. Run the AI's formula or script on the real file on your own computer.</p>
+    <h3>What this tool does</h3>
+    <p>It replaces personal data in a spreadsheet with codes, ranges or blanks. You can then share the copy.</p>
+    <p>Everything happens in your browser. The tool never sends your file anywhere.</p>
   </section>
   <section>
-    <h3>Masking does not change how the file is classified</h3>
-    <p>Masking lowers the risk, but your organisation still classifies the file the same way. A masked extract of a restricted record is still restricted.</p>
-    <p>Follow your organisation's rules before you share any data with an AI tool or anyone else.</p>
+    <h3>Share as little as you can</h3>
+    <ol>
+      <li><b>Column names only.</b> Enough for an AI to write a formula.</li>
+      <li><b>A small masked sample.</b> 20 to 50 rows. Use it when the AI must see real-looking values.</li>
+      <li><b>Totals.</b> Count on your own computer and share only the totals.</li>
+    </ol>
+    <p>Do not share the real rows. Run the AI's formula on your own computer.</p>
   </section>
   <section>
     <h3>How to use it</h3>
     <ol>
-      <li>Open a CSV or Excel file. Choose the sheet and the header row, or tick “My file has no header row”.</li>
-      <li>For each column, choose Mask, Remove or Keep. Each card shows how the values change. Open “Tidy and date options” to set the date order.</li>
-      <li>Choose the rows to download and read the preview.</li>
-      <li>Open Risk check. Fix every red warning and read free-text notes yourself.</li>
-      <li>Download the column names or the masked data. Download the match file after the masked data, and keep it on this computer only.</li>
+      <li>Open a CSV or Excel file. Choose the sheet and the row with the column names.</li>
+      <li>For each column, choose Mask, Remove or Keep. The card shows the result.</li>
+      <li>Choose the rows you want and read the preview.</li>
+      <li>Open Risk check. Fix every red item.</li>
+      <li>Download the masked data. Then download the match file.</li>
     </ol>
   </section>
   <section>
+    <h3>Masking does not change the rules</h3>
+    <p>A masked copy of a secret file is still secret. Follow your organisation's rules before you share it.</p>
+  </section>
+  <section class="wide">
     <h3>Masking methods</h3>
     <table class="help-table">
-      <thead><tr><th scope="col">Method</th><th scope="col">When to use it</th><th scope="col">Example</th></tr></thead>
+      <thead><tr><th scope="col">Method</th><th scope="col">Use it for</th><th scope="col">Example</th></tr></thead>
       <tbody>
-        <tr><td>Replace with code</td><td>Names, ID numbers, employee numbers and emails that you need to restore after the AI step. National IDs get random codes by default. Columns with the same prefix share codes.</td><td>Maria Garcia → PERSON_001</td></tr>
-        <tr><td>Hide part</td><td>Phone or reference numbers that only need a rough match.</td><td>+1 555 010 4321 → ** *** *** **21</td></tr>
-        <tr><td>Change to a range or group</td><td>Dates of birth, salaries and addresses.</td><td>01/23/1977 → 45-49; 57080.84 → 57000-57999; 12 Oak Street, Springfield, USA → USA</td></tr>
-        <tr><td>Shift dates</td><td>Appointment or leave dates. By default, each row shifts by its own random number of days, so intervals within a row stay exact.</td><td>12/25/2004 → 03/12/2003</td></tr>
-        <tr><td>Round or adjust numbers</td><td>Numbers that need only a rough analysis.</td><td>5708.84 → 5700</td></tr>
-        <tr><td>Replace with fixed text</td><td>Columns that must stay in the file but whose content does not matter.</td><td>any value → [REMOVED]</td></tr>
-        <tr><td>Mask names in notes</td><td>Notes, remarks and comments.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
+        <tr><td>Replace with a code</td><td>Names, IDs and emails that you want to restore later. The same value always gets the same code.</td><td>Maria Garcia → PERSON_001</td></tr>
+        <tr><td>Hide part of the value</td><td>Phone and reference numbers.</td><td>+1 555 010 4321 → ** *** *** **21</td></tr>
+        <tr><td>Replace with a group or range</td><td>Dates of birth, salaries and addresses.</td><td>01/23/1977 → 45-49<br>57080.84 → 57000-57999<br>12 Oak Street, Springfield, USA → USA</td></tr>
+        <tr><td>Move dates</td><td>Dates of events. Each row moves by its own number of days.</td><td>12/25/2004 → 03/12/2003</td></tr>
+        <tr><td>Round or change numbers</td><td>Numbers that need only a rough value.</td><td>5708.84 → 5700</td></tr>
+        <tr><td>Replace with fixed text</td><td>Columns that must stay but have no useful content.</td><td>any value → [REMOVED]</td></tr>
+        <tr><td>Hide names and numbers in notes</td><td>Free text such as notes and comments.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
       </tbody>
     </table>
-    <p class="help">Hide part on a date shows a warning when the kept part reveals the month or day. Hide part on a national ID shows a warning too, because some IDs encode a birth date.</p>
   </section>
   <section>
-    <h3>Supported formats</h3>
-    <p>The tool recognises common English column names and these value formats. Check every suggestion, because other formats can look like text.</p>
+    <h3>What the tool recognises</h3>
+    <p>The tool reads English column names. It also finds these value patterns:</p>
     <ul>
-      <li>Column names such as Name, ID or Employee ID, National ID or SSN, Date of Birth, Email, Phone, Address, Salary, and Notes.</li>
-      <li>National IDs written like 123-45-6789.</li>
-      <li>Phone numbers with a + sign, spaces, dashes or brackets, such as +44 20 7946 0958 or (415) 555-0100.</li>
-      <li>Dates as DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, or with an English month name, such as 25 Dec 2004 or December 25, 2004.</li>
-      <li>Money with a symbol or a currency code, such as $1,250.00 or EUR 900.50.</li>
-      <li>Addresses with a street word such as Street, Road or Avenue, or with a postcode.</li>
+      <li>National IDs like 123-45-6789</li>
+      <li>Phone numbers like +44 20 7946 0958 or (415) 555-0100</li>
+      <li>Dates like 25/12/2004, 12/25/2004, 2004-12-25 or 25 Dec 2004</li>
+      <li>Money like $1,250.00 or EUR 900.50</li>
+      <li>Addresses with a street word or a postcode</li>
+    </ul>
+    <p>Check every suggestion. Other formats can look like plain text.</p>
+  </section>
+  <section>
+    <h3>The match file</h3>
+    <p>The match file links each code to the real value. With it, anyone can undo the masking.</p>
+    <ul>
+      <li>Keep it on this computer. Never upload it or email it.</li>
+      <li>Do not open and save it in Excel. Excel changes long numbers.</li>
+      <li>Use the Restore names tab to put real values back.</li>
+      <li>Delete it when you finish.</li>
+    </ul>
+    <p>“Numbered” codes look like _001. The tool gives the numbers in random order. “Random” codes look like _7KQ3XZ. Both are safe. Codes ignore capital letters.</p>
+  </section>
+  <section class="wide">
+    <h3>Limits</h3>
+    <ul>
+      <li>The suggestions can be wrong. Check every column.</li>
+      <li>The tool finds names in notes only when the name is in a name column. It misses nicknames and other spellings.</li>
+      <li>A mix of details, such as job level and team, can point to one person. Use the Risk check to find these mixes.</li>
+      <li>Month names must be English. Use number dates for other languages.</li>
+      <li>If letters look wrong, choose another text encoding in step 1.</li>
+      <li>Chinese, Arabic and other scripts without capital letters get a “Check” label. Read those columns yourself.</li>
+      <li>Excel formulas are not calculated. The tool reads the values saved in the cells.</li>
+      <li>Restore moves shifted dates back only in CSV and Excel files. Pasted text keeps shifted dates.</li>
     </ul>
   </section>
-  <section>
-    <h3>The match file and how to restore names</h3>
-    <p>The match file links each code to the real value. Codes of the type “Numbered” are dealt out in random order, so a number does not show a row position. Codes of the type “Random” are letters and digits. Both are safe. Codes ignore letter case, so “maria garcia” and “Maria Garcia” share one code.</p>
-    <ul>
-      <li>Keep the match file on this computer only. Never upload it to an AI tool, email, Google Drive or OneDrive.</li>
-      <li>Never open and save the match file in Excel. Excel can change long numbers and drop leading zeros.</li>
-      <li>To restore names, open the Restore names tab. Open the match file, then paste the AI answer or open a CSV or Excel file.</li>
-      <li>Delete the match file when the work is done.</li>
-    </ul>
-  </section>
-  <section>
-    <h3>Limits of this tool</h3>
-    <ul>
-      <li>The detected column types are suggestions only. You must check every column yourself.</li>
-      <li>Mask names in notes finds only names from the name columns, their first and last words, and ID, email and phone patterns. It misses nicknames, other spellings and other personal details.</li>
-      <li>A combination such as grade and unit can still show who someone is after the name is removed. Use the “Can someone be picked out?” check in Risk check, and merge groups of fewer than 5 people.</li>
-      <li>A date such as 03/04/2020 is read day first or month first, as set under Tidy and date options. Age groups use today's date.</li>
-      <li>Shifted dates are restored only in CSV or Excel files, not in pasted text. The file must keep the code column that the match file uses to line up rows, or the original row order.</li>
-      <li>Text that is not in UTF-8 can look garbled. Choose the right text encoding in step 1 and check a few values.</li>
-      <li>The tool reads English column names and English month names. For other languages, check every column yourself. Text in scripts without letter case, such as Chinese or Arabic, is flagged for you to check.</li>
-      <li>Excel formulas are not recalculated. The tool reads the values stored in the cells.</li>
-      <li>Large files are processed in the browser. A file of 20,000 rows × 40 columns takes a few seconds.</li>
-    </ul>
-  </section>
-  <section>
-    <h3>About this tool</h3>
-    <p>Data Masking Tool development build. It runs entirely in your browser. It makes no network requests, and no data leaves this page.</p>
-    <p>It includes SheetJS Community Edition 0.20.3, Apache License 2.0, to read and write Excel files.</p>
+  <section class="wide">
+    <h3>About</h3>
+    <p>Data Masking Tool development build. It makes no network requests. No data leaves this page.</p>
+    <p>It includes SheetJS Community Edition 0.20.3 (Apache License 2.0) to read and write Excel files.</p>
   </section>
 </section>
 </main>
 
 <dialog id="key-dialog" aria-labelledby="key-dlg-h">
-  <h2 id="key-dlg-h">The match file holds real data</h2>
+  <h2 id="key-dlg-h">The match file has real data</h2>
   <ul>
-    <li>This file links each code to a real name, ID number or other value.</li>
-    <li>Keep it on this computer only.</li>
-    <li>Never upload it to an AI tool, email, Google Drive or OneDrive.</li>
-    <li>Anyone who has this file and the masked data can identify every person.</li>
-    <li>Delete this file when the work is done.</li>
+    <li>It links each code to a real name, ID or other value.</li>
+    <li>Anyone with this file and the masked data can identify every person.</li>
+    <li>Keep it on this computer. Never upload it or email it.</li>
+    <li>Delete it when you finish.</li>
   </ul>
-  <div class="field check"><input type="checkbox" id="key-ack" aria-describedby="key-ack-h"><label for="key-ack">I understand. I will keep the match file on this computer only.</label><p class="help" id="key-ack-h">Tick this box to turn on the download button.</p></div>
+  <div class="field check"><input type="checkbox" id="key-ack"><label for="key-ack">I understand. I will keep this file private.</label></div>
   <div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn" id="key-cancel">Cancel</button><button type="button" class="btn danger" id="key-confirm" disabled>Download match file</button></div>
 </dialog>
 
@@ -1587,7 +1582,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 (function () {
   'use strict';
   var L = window.DMLogic;
-  var PREVIEW_ROWS = 20;
+  var PREVIEW_ROWS = 5;
   var CHUNK = 1000;
   var SAMPLE_CSV = 'Full Name,National ID,Grade,Department,Date of Birth,Hire Date,Salary,Notes\r\n' +
     'Maria Garcia,912-34-5124,L4,Finance,04/12/1988,07/01/2014,4120.00,Parental leave until 11/30/2026\r\n' +
@@ -1645,7 +1640,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     a.href = url; a.download = name; a.style.display = 'none';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
-    announce('File ' + name + ' downloaded.');
+    announce('Downloaded ' + name + '.');
   }
   function copyText(text, okMsg) {
     function fallback() {
@@ -1722,19 +1717,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   };
 
   var STRATEGIES = [
-    ['pseudo', 'Replace with code', 'Each name or number becomes a code, for example PERSON_001. The same value always gets the same code.'],
-    ['partial', 'Hide part', 'Keep a few letters or digits at the start or end. The rest become *.'],
-    ['gen', 'Change to a range or group', 'The exact value becomes a group: year, age group, number range, first letters or address region.'],
-    ['shift', 'Shift dates', 'Each date moves by a random number of days. Intervals between dates in the same row stay exact.'],
-    ['num', 'Round or adjust numbers', 'Round each number to a set step, or change it at random within a set percentage.'],
+    ['pseudo', 'Replace with a code', 'Each name or number becomes a code such as PERSON_001. The same value always gets the same code.'],
+    ['partial', 'Hide part of the value', 'Show a few letters or digits. The rest become *.'],
+    ['gen', 'Replace with a group or range', 'Replace the exact value with a group: a year, an age group, a number range, first letters or the end of an address.'],
+    ['shift', 'Move dates', 'Move each date by a random number of days.'],
+    ['num', 'Round or change numbers', 'Round each number, or change it by a small random amount.'],
     ['fixed', 'Replace with fixed text', 'Every filled cell gets the same text. Empty cells stay empty.'],
-    ['scrub', 'Mask names in notes', 'Names from the name columns, plus ID numbers, emails and phone numbers in the notes, become codes or labels. Read the rest of the text yourself.']
+    ['scrub', 'Hide names and numbers in notes', 'Hide names, IDs, emails and phone numbers in free text. Read the rest of the text yourself.']
   ];
   var STRAT_LABEL = {}; var STRAT_HELP = {};
   STRATEGIES.forEach(function (s) { STRAT_LABEL[s[0]] = s[1]; STRAT_HELP[s[0]] = s[2]; });
   var GEN_MODES = [
-    ['year', 'Year only (dates)'], ['ageband', 'Age or length-of-service group (dates)'],
-    ['band', 'Number range'], ['firstn', 'First N characters (text)'], ['region', 'Last part of an address (such as the country)']
+    ['year', 'Year only (for dates)'], ['ageband', 'Age group (for dates)'],
+    ['band', 'Number range'], ['firstn', 'First letters (for text)'], ['region', 'Last part of an address (for example the country)']
   ];
 
   function bump() {
@@ -1766,7 +1761,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     if (id === 'p-columns') refreshExamples();
     if (id === 'p-risk' && state.rows.length) {
       renderRisk();
-      // The group-size check needs the masked rows, so prepare them here.
+      // The check on mixes of details needs the masked rows, so make them here.
       if (!(state.result && state.result.version === state.version)) generate().then(null, function () {});
     }
     if (id === 'p-export') { renderPreview(); renderExport(); }
@@ -1817,7 +1812,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     $('#try-sample').addEventListener('click', function () { loadFile(new File([SAMPLE_CSV], 'sample-staff-list.csv', { type: 'text/csv' })); });
     $('#no-header').addEventListener('change', function (e) {
       state.noHeader = e.target.checked; buildTable(); renderLoadInfo();
-      announce(state.noHeader ? 'The columns are named Column 1, Column 2 and so on.' : 'Row ' + (state.headerRow + 1) + ' is the header row.');
+      announce(state.noHeader ? 'The columns are named Column 1, Column 2 and so on.' : 'Row ' + (state.headerRow + 1) + ' has the column names.');
     });
     $('#enc-select').addEventListener('change', function (e) {
       Bridge.call({ type: 'open', slot: 'main', name: state.file.name, buf: state.buf, encoding: e.target.value }).then(function (res) {
@@ -1833,7 +1828,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       setMsg(msg, 'err', 'The tool cannot open <b>' + esc(file.name) + '</b>. Choose a CSV, Excel (.xlsx, .xls) or .ods file.');
       return;
     }
-    setMsg(msg, 'info', 'Reading <b>' + esc(file.name) + '</b> (' + fmtBytes(file.size) + ')…');
+    setMsg(msg, 'info', 'Opening <b>' + esc(file.name) + '</b> (' + fmtBytes(file.size) + ')…');
     file.arrayBuffer().then(function (buf) {
       state.buf = buf;
       return Bridge.call({ type: 'open', slot: 'main', name: file.name, buf: buf });
@@ -1844,10 +1839,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       state.sheets = res.sheets; state.sheet = res.sheet;
       state.session.random = new Map(); noiseCache.clear(); rowShiftCache.clear();
       setRaw(res.rows);
-      setMsg(msg, 'ok', 'File <b>' + esc(file.name) + '</b> is open.');
+      setMsg(msg, 'ok', 'Opened <b>' + esc(file.name) + '</b>.');
     }).catch(function (err) {
       setMsg(msg, 'err', 'The tool cannot read <b>' + esc(file.name) + '</b>: ' + esc(err.message) +
-        '. Check that the file is not damaged or password-protected, then try again.');
+        '. Check that the file is not damaged and has no password. Then try again.');
     });
   }
 
@@ -1983,13 +1978,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     var lim = Math.min(state.raw.length, 30), width = 0;
     for (var i = 0; i < lim; i++) width = Math.max(width, state.raw[i].length);
     width = Math.min(width, 12);
-    var html = '<table class="grid raw"><thead><tr><th scope="col">Header row</th><th scope="col">Row</th>';
+    var html = '<table class="grid raw"><thead><tr><th scope="col">Column names</th><th scope="col">Row</th>';
     for (var c = 0; c < width; c++) html += '<th scope="col">' + String.fromCharCode(65 + (c % 26)) + '</th>';
     html += '</tr></thead><tbody>';
     for (var r = 0; r < lim; r++) {
       var on = !state.noHeader && r === state.headerRow;
       html += '<tr class="' + (on ? 'hdr-on' : '') + '"><td><input type="radio" name="hdr-row" value="' + r + '"' +
-        (on ? ' checked' : '') + (state.noHeader ? ' disabled' : '') + ' aria-label="Use row ' + (r + 1) + ' as the header row"></td><td>' + (r + 1) + '</td>';
+        (on ? ' checked' : '') + (state.noHeader ? ' disabled' : '') + ' aria-label="Row ' + (r + 1) + ' has the column names"></td><td>' + (r + 1) + '</td>';
       for (var c2 = 0; c2 < width; c2++) html += '<td dir="auto">' + esc(trunc(state.raw[r][c2], 22)) + '</td>';
       html += '</tr>';
     }
@@ -1998,19 +1993,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     $$('input[name=hdr-row]').forEach(function (rb) {
       rb.addEventListener('change', function () {
         state.headerRow = +rb.value; buildTable(); renderLoadInfo();
-        announce('Row ' + (state.headerRow + 1) + ' is now the header row.');
+        announce('Row ' + (state.headerRow + 1) + ' has the column names.');
       });
     });
     var v = state.validation, items = [];
     items.push('<li><b>' + fmtInt(v.rows) + '</b> data rows and <b>' + fmtInt(v.cols) + '</b> columns.</li>');
-    if (v.emptyRows) items.push('<li>' + fmtInt(v.emptyRows) + ' empty rows ignored.</li>');
-    if (v.dupRows) items.push('<li class="warn-t">' + fmtInt(v.dupRows) + ' duplicate rows (exactly the same as another row).</li>');
-    if (v.dupNames.length) items.push('<li class="warn-t">Repeated column names were numbered: ' + esc(v.dupNames.join(', ')) + '.</li>');
-    if (state.noHeader && state.autoNoHeader) items.push('<li class="warn-t">Row ' + (state.headerRow + 1) + ' looks like data, not column names, so the columns are named Column 1, Column 2 and so on. Untick “My file has no header row” if that row holds the names.</li>');
-    if (v.dataHeaders && !state.noHeader) items.push('<li class="err-t">' + v.dataHeaders + ' cells in the header row look like real values (an email, ID, phone number or date). The tool renamed them Column N. If your file has no header row, tick the box above.</li>');
-    if (v.blankHeaders) items.push('<li class="warn-t">' + v.blankHeaders + ' columns without a name were named “Column N”.</li>');
-    if (v.emptyCols.length) items.push('<li>Fully empty columns (suggested: Remove): ' + esc(v.emptyCols.join(', ')) + '.</li>');
-    if (!v.rows) items.push('<li class="err-t">' + (state.raw.length <= (state.noHeader ? 0 : 1) ? 'The file has no data rows.' : 'No data rows below the header row. Choose another header row.') + '</li>');
+    if (v.emptyRows) items.push('<li>' + fmtInt(v.emptyRows) + ' empty rows were ignored.</li>');
+    if (v.dupRows) items.push('<li class="warn-t">' + fmtInt(v.dupRows) + ' rows are exact copies of another row.</li>');
+    if (v.dupNames.length) items.push('<li class="warn-t">Some columns had the same name. The tool added numbers: ' + esc(v.dupNames.join(', ')) + '.</li>');
+    if (state.noHeader && state.autoNoHeader) items.push('<li class="warn-t">Row ' + (state.headerRow + 1) + ' looks like data, not column names. The tool named the columns “Column 1”, “Column 2” and so on. Untick the box if that row has the names.</li>');
+    if (v.dataHeaders && !state.noHeader) items.push('<li class="err-t">' + v.dataHeaders + ' cells in the header row look like real values (an email, ID, phone number or date). The tool renamed them “Column N”. If your file has no header row, tick the box above.</li>');
+    if (v.blankHeaders) items.push('<li class="warn-t">' + v.blankHeaders + ' columns had no name. The tool named them “Column N”.</li>');
+    if (v.emptyCols.length) items.push('<li>Empty columns (the tool suggests Remove): ' + esc(v.emptyCols.join(', ')) + '.</li>');
+    if (!v.rows) items.push('<li class="err-t">' + (state.raw.length <= (state.noHeader ? 0 : 1) ? 'The file has no rows of data.' : 'There are no rows below the header row. Choose another header row.') + '</li>');
     $('#validation').innerHTML = items.join('');
     $('#to-columns').disabled = !v.rows;
   }
@@ -2067,15 +2062,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       if (c.status === 'accept' && (c.personal || c.presetPII)) risky++;
     });
     var html = fmtInt(state.cols.length) + ' columns: ' + n.mask + ' to mask, ' + n.accept + ' to keep, ' + n.hide + ' to remove';
-    if (risky) html += ' · <b class="err-t">' + risky + (risky === 1 ? ' personal column is' : ' personal columns are') + ' set to Keep</b>';
+    if (risky) html += ' · <b class="err-t">' + risky + (risky === 1 ? ' column with personal data is' : ' columns with personal data are') + ' set to Keep</b>';
     $('#col-count').innerHTML = html;
   }
 
   function badgeHtml(c) {
     var b = [];
     if (c.personal || c.presetPII) b.push('<span class="badge b-danger">Personal data</span>');
-    if (c.freeText) b.push('<span class="badge b-warn">Notes: read yourself</span>');
-    if (c.review) b.push('<span class="badge b-warn">Check: could be personal data</span>');
+    if (c.freeText) b.push('<span class="badge b-warn">Free text: read it yourself</span>');
+    if (c.review) b.push('<span class="badge b-warn">Check this column</span>');
     if (c.serialDates) b.push('<span class="badge">Dates stored as Excel numbers</span>');
     return b.join(' ');
   }
@@ -2118,37 +2113,37 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     var p = c.params, h = '';
     switch (c.strategy) {
       case 'pseudo':
-        h += textField(c, 'prefix', 'Code prefix', '');
-        h += selField(c, 'tokenStyle', 'Code type', '', [['seq', 'Numbered (_001, _002)'], ['random', 'Random (_7KQ3XZ)']]);
+        h += textField(c, 'prefix', 'Start of the code', '');
+        h += selField(c, 'tokenStyle', 'Type of code', '', [['seq', 'Numbers (_001, _002)'], ['random', 'Random letters (_7KQ3XZ)']]);
         break;
       case 'partial':
-        h += numField(c, 'keepN', 'Characters to keep', '', 0, 1);
-        h += selField(c, 'side', 'Keep at', '', [['last', 'The end'], ['first', 'The start']]);
-        h += checkField(c, 'keepSep', 'Keep separators (- / . @ and spaces)', '');
+        h += numField(c, 'keepN', 'Characters to show', '', 0, 1);
+        h += selField(c, 'side', 'Show them at', '', [['last', 'The end'], ['first', 'The start']]);
+        h += checkField(c, 'keepSep', 'Keep - / . @ and spaces', '');
         if (L.partialRevealsDate(firstSanitized(c), c, parseInt(p.keepN, 10) || 0, p.side, state.sanitise.dateOrder)) {
-          h += '<p class="msg err inline" role="alert">The kept part reveals the month or day, not only the year. Keep fewer characters, or choose Change to a range or group.</p>';
+          h += '<p class="msg err inline" role="alert">This shows the month or day, not only the year. Show fewer characters, or choose “Replace with a group or range”.</p>';
         }
         if (c.kind === 'national_id') {
-          h += '<p class="msg warn inline">Digits of a national ID can still identify a person, and some IDs encode a birth date. Safer choices: Remove, or Replace with code using random codes.</p>';
+          h += '<p class="msg warn inline">Digits of a national ID can still identify a person. Some IDs contain a birth date. Safer: choose Remove, or choose “Replace with a code” with random letters.</p>';
         }
         break;
       case 'gen':
-        h += selField(c, 'genMode', 'Kind of group', '', GEN_MODES);
-        if (p.genMode === 'ageband') h += numField(c, 'width', 'Group size (years)', 'Ages use today\'s date.', 1, 1);
-        if (p.genMode === 'band') h += numField(c, 'width', 'Range size', '', 1, 'any');
-        if (p.genMode === 'firstn') h += numField(c, 'firstN', 'Number of characters', '', 0, 1);
-        if (p.genMode === 'region') h += numField(c, 'parts', 'Parts to keep from the end', 'Parts are separated by commas. Parts with digits, such as a postcode, are dropped.', 1, 1);
+        h += selField(c, 'genMode', 'Group by', '', GEN_MODES);
+        if (p.genMode === 'ageband') h += numField(c, 'width', 'Years in each age group', 'Ages are worked out from today.', 1, 1);
+        if (p.genMode === 'band') h += numField(c, 'width', 'Size of each range', '', 1, 'any');
+        if (p.genMode === 'firstn') h += numField(c, 'firstN', 'How many letters', '', 0, 1);
+        if (p.genMode === 'region') h += numField(c, 'parts', 'How many address parts to keep', 'Parts are separated by commas. Parts with digits, such as a postcode, are removed.', 1, 1);
         break;
       case 'shift':
-        h += '<p class="help">' + (state.session.shiftMode === 'file' ? 'One shift for the whole file.' : 'A different shift for each row.') + ' Change this under Tidy and date options.</p>';
+        h += '<p class="help">' + (state.session.shiftMode === 'file' ? 'All rows move by the same number of days.' : 'Each row moves by a different number of days.') + ' Change this under “Dates and cleaning”.</p>';
         break;
       case 'num':
-        h += selField(c, 'numMode', 'How to change', '', [['round', 'Round'], ['noise', 'Small random change (±%)']]);
-        if (p.numMode === 'noise') h += numField(c, 'noisePct', 'Largest change (%)', '', 0, 'any');
+        h += selField(c, 'numMode', 'How to change the number', '', [['round', 'Round it'], ['noise', 'Add a small random change']]);
+        if (p.numMode === 'noise') h += numField(c, 'noisePct', 'Biggest change (%)', '', 0, 'any');
         else h += numField(c, 'roundTo', 'Round to the nearest', '', 0, 'any');
         break;
       case 'fixed':
-        h += textField(c, 'fixedText', 'Replacement text', '');
+        h += textField(c, 'fixedText', 'Text to use', '');
         break;
     }
     return h;
@@ -2181,9 +2176,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       return '<p class="ex-title">Example: before → after</p><ul class="ex-list">' + rows.map(function (x) {
         return '<li>' + code(x[0]) + '<span class="ex-arrow" aria-hidden="true">→</span><span class="sr-only"> becomes </span>' + code(x[1]) + '</li>';
       }).join('') + '</ul>' + (bad ? '<p class="msg warn inline">The tool cannot read ' + (bad === 1 ? 'this value' : 'these values') + ' with this method. ' +
-        (c.kind === 'date' ? 'Check the date order under Tidy and date options, or use another method.' : 'Choose another method.') + '</p>' : '');
+        (c.kind === 'date' ? 'Check the date order under “Dates and cleaning”, or choose another method.' : 'Choose another method.') + '</p>' : '');
     }
-    var title = c.status === 'hide' ? 'Examples (left out of the download)' : 'Examples (downloaded as they are)';
+    var title = c.status === 'hide' ? 'Examples (this column is left out)' : 'Examples (copied as they are)';
     return '<p class="ex-title">' + title + '</p><ul class="ex-list">' + c.samples.map(function (t) { return '<li>' + code(t) + '</li>'; }).join('') + '</ul>';
   }
   function refreshExamples() {
@@ -2198,10 +2193,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     var i = c.idx, st = c.status;
     var h = '<article class="col-card st-' + st + '" id="card-' + i + '" aria-labelledby="cn-' + i + '">';
     h += '<div class="col-info"><h3 id="cn-' + i + '">' + esc(c.header) + '</h3>';
-    h += '<p class="meta">Looks like: <b>' + esc(L.KIND_LABEL[c.kind]) + '</b></p>';
+    h += '<p class="meta">Type: <b>' + esc(L.KIND_LABEL[c.kind]) + '</b></p>';
     h += '<p class="badges">' + badgeHtml(c) + '</p>';
     h += '<div class="ex" id="ex-' + i + '">' + examplesHtml(c) + '</div></div>';
-    h += '<div class="col-main"><fieldset class="status"><legend>Action</legend><div class="seg">';
+    h += '<div class="col-main"><fieldset class="status"><legend>What to do</legend><div class="seg">';
     [['mask', 'Mask'], ['hide', 'Remove'], ['accept', 'Keep']].forEach(function (o) {
       var id = 's-' + i + '-' + o[0];
       h += '<input type="radio" name="st-' + i + '" id="' + id + '" value="' + o[0] + '"' + (st === o[0] ? ' checked' : '') + '><label for="' + id + '">' + o[1] + '</label>';
@@ -2210,18 +2205,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     h += '<div class="strategy">';
     if (st === 'mask') {
       var sid = 'f-' + i + '-strategy';
-      h += '<div class="field"><label for="' + sid + '">Masking method</label><select id="' + sid + '" data-strategy aria-describedby="' + sid + '-h" title="' + esc(STRAT_HELP[c.strategy]) + '">' +
+      h += '<div class="field"><label for="' + sid + '">How to mask</label><select id="' + sid + '" data-strategy aria-describedby="' + sid + '-h" title="' + esc(STRAT_HELP[c.strategy]) + '">' +
         STRATEGIES.map(function (s) { return '<option value="' + s[0] + '"' + (c.strategy === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
         '</select><span class="sr-only" id="' + sid + '-h">' + esc(STRAT_HELP[c.strategy]) + '</span></div>';
       h += '<div class="params">' + paramsHtml(c) + '</div>';
     } else if (st === 'accept') {
-      if (c.personal || c.presetPII) h += '<p class="msg err inline">This column looks like personal data but is set to Keep. Change it to Mask or Remove.</p>';
-      if (c.freeText) h += '<p class="msg warn inline">Notes can contain names. Choose Mask with Mask names in notes, or Remove.</p>';
+      if (c.personal || c.presetPII) h += '<p class="msg err inline">This column has personal data, but you chose Keep. Choose Mask or Remove.</p>';
+      if (c.freeText) h += '<p class="msg warn inline">Notes can have names in them. Choose Mask with “Hide names and numbers in notes”, or choose Remove.</p>';
     }
     h += '</div></div>';
     var oid = 'on-' + i;
-    h += '<div class="col-extra"><details class="more"' + (c.outNameUser ? ' open' : '') + '><summary>Rename column</summary>';
-    h += '<div class="field"><label for="' + oid + '">Column name in the new file</label><input type="text" id="' + oid + '" data-outname value="' + esc(c.outNameUser) + '" placeholder="' + esc(state.sanitise.normHeader ? c.norm : c.header) + '"' + (st === 'hide' ? ' disabled' : '') + '></div>';
+    h += '<div class="col-extra"><details class="more"' + (c.outNameUser ? ' open' : '') + '><summary>Change the column name</summary>';
+    h += '<div class="field"><label for="' + oid + '">Name in the new file</label><input type="text" id="' + oid + '" data-outname value="' + esc(c.outNameUser) + '" placeholder="' + esc(state.sanitise.normHeader ? c.norm : c.header) + '"' + (st === 'hide' ? ' disabled' : '') + '></div>';
     h += '</details></div>';
     h += '</article>';
     return h;
@@ -2290,7 +2285,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       c.qi = c.qiDefault;
     });
     renderColumns(); bump();
-    announce('Every column is back to its suggested choice.');
+    announce('Every column is back to the suggested choice.');
   }
 
   // ---------- presets ----------
@@ -2312,15 +2307,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     };
     var name = 'saved-settings-' + (L.normalizeColumnName(domain) || 'my-settings') + '.json';
     download(name, JSON.stringify(preset, null, 2), 'application/json');
-    setMsg($('#preset-msg'), 'ok', 'Settings file <b>' + esc(name) + '</b> saved. It holds no data.');
+    setMsg($('#preset-msg'), 'ok', 'Saved <b>' + esc(name) + '</b>. It has no data from your file.');
   }
 
   function loadPreset(file) {
     var msg = $('#preset-msg');
     file.text().then(function (text) {
       var p;
-      try { p = JSON.parse(text); } catch (e) { throw new Error('the file is not valid JSON'); }
-      if (!p || p.format !== 'data-masker-preset' || typeof p.columns !== 'object') throw new Error('the file is not a settings file from this tool');
+      try { p = JSON.parse(text); } catch (e) { throw new Error('the file is not a valid settings file'); }
+      if (!p || p.format !== 'data-masker-preset' || typeof p.columns !== 'object') throw new Error('this is not a settings file from this tool');
       if (!state.cols.length) throw new Error('open a data file first');
       var matched = 0, unmatched = [];
       var validStatus = { mask: 1, hide: 1, accept: 1 };
@@ -2346,12 +2341,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       if (p.shift_mode === 'row' || p.shift_mode === 'file') state.session.shiftMode = p.shift_mode;
       $('#preset-domain').value = p.domain || ''; $('#preset-desc').value = p.description || '';
       renderColumns(); renderSanitise(); bump();
-      var html = 'Settings <b>' + esc(p.domain || file.name) + '</b> applied: ' + matched + ' columns matched.';
-      if (unmatched.length) html += '<br>Columns with no saved setting (suggestion used): ' + esc(unmatched.join(', ')) + '.';
-      if (missing.length) html += '<br><b>Columns in the settings file but not in this file:</b> ' + esc(missing.join(', ')) + '. Check that this is the right file.';
+      var html = 'Loaded <b>' + esc(p.domain || file.name) + '</b>. It matched ' + matched + ' columns.';
+      if (unmatched.length) html += '<br>These columns are not in the settings file. The tool used its suggestion: ' + esc(unmatched.join(', ')) + '.';
+      if (missing.length) html += '<br><b>These columns are in the settings file but not in this file:</b> ' + esc(missing.join(', ')) + '. Check that you chose the right file.';
       setMsg(msg, missing.length ? 'warn' : 'ok', html);
     }).catch(function (err) {
-      setMsg(msg, 'err', 'The tool cannot use settings file <b>' + esc(file.name) + '</b>: ' + esc(err.message) + '. Choose a .json file that this tool saved.');
+      setMsg(msg, 'err', 'The tool cannot use <b>' + esc(file.name) + '</b>: ' + esc(err.message) + '. Choose a .json file that this tool saved.');
     });
   }
 
@@ -2388,8 +2383,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     $('#new-shift').addEventListener('click', function () {
       state.session.shiftDays = L.randomShiftDays(); rowShiftCache.clear();
       bump();
-      announce('New date shifts are ready. An older match file no longer restores the dates.');
-      $('#shift-info').textContent = 'New date shifts are ready. Download again, and keep the new match file.';
+      announce('The tool chose new random shifts. An older match file cannot move the dates back.');
+      $('#shift-info').textContent = 'The tool chose new random shifts. Download the masked data and the match file again.';
     });
   }
 
@@ -2529,30 +2524,30 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   var generating = null;
   function generate() {
     if (generating) return generating;
-    var btn = $('#gen-btn'), prog = $('#gen-progress'), lab = $('#gen-progress-label');
-    btn.disabled = true; prog.hidden = false; lab.hidden = false; prog.value = 0;
+    var prog = $('#gen-progress'), lab = $('#gen-progress-label');
+    prog.hidden = false; lab.hidden = false; prog.value = 0;
     var version = state.version;
     var inner = (async function () {
       var idx = outputIndices();
       var run = prepareRun();
       var rows = await processRows(idx, run, version, function (done, total) {
         prog.value = done / total;
-        lab.textContent = 'Processing ' + fmtInt(done) + ' of ' + fmtInt(total) + ' rows…';
+        lab.textContent = 'Working on row ' + fmtInt(done) + ' of ' + fmtInt(total) + '…';
       });
       if (!rows) return null;
       state.result = makeResult(version, idx, run, rows);
       return state.result;
     })();
     generating = inner.then(function (res) {
-      generating = null; btn.disabled = false; prog.hidden = true; lab.hidden = true;
+      generating = null; prog.hidden = true; lab.hidden = true;
       if (!res) return generate();
       renderExport(); renderRiskSummary();
       if (!$('#p-risk').hidden) renderRisk();
-      announce('Masked data is ready: ' + fmtInt(res.rows.length) + ' rows.');
+      announce('The masked data is ready: ' + fmtInt(res.rows.length) + ' rows.');
       return res;
     }, function (err) {
-      generating = null; btn.disabled = false; prog.hidden = true; lab.hidden = true;
-      setMsg($('#export-msg'), 'err', 'The tool cannot prepare the data: ' + esc(err.message) + '. Check the column choices and try again.');
+      generating = null; prog.hidden = true; lab.hidden = true;
+      setMsg($('#export-msg'), 'err', 'The tool cannot make the masked data: ' + esc(err.message) + '. Check your column choices and try again.');
       throw err;
     });
     return generating;
@@ -2565,13 +2560,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   // ---------- step 4: preview and export ----------
   function renderPreview() {
     var box = $('#preview');
-    if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
+    if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; $('#preview-note').textContent = ''; return; }
     var idx = outputIndices().slice(0, PREVIEW_ROWS);
     var run = prepareRun();
     var showOrig = $('#prev-orig').checked;
-    var html = '<table class="grid preview"><caption class="sr-only">Preview before and after masking</caption><thead><tr><th scope="col">#</th>';
+    var html = '<table class="grid preview"><caption class="sr-only">Preview of the masked rows</caption><thead><tr><th scope="col" title="Row number in your file">Row</th>';
     state.cols.forEach(function (c) {
-      if (c.status === 'hide') html += '<th scope="col" class="hidden-col"><s>' + esc(c.header) + '</s><span class="tag">removed</span></th>';
+      if (c.status === 'hide') html += '<th scope="col" class="hidden-col"><s>' + esc(c.header) + '</s><span class="tag">left out</span></th>';
       else html += '<th scope="col">' + esc(c.outName) + (c.outName !== c.header ? '<span class="tag">was: ' + esc(c.header) + '</span>' : '') + '<span class="tag st-' + c.status + '">' + statusLabel(c.status) + '</span></th>';
     });
     html += '</tr></thead><tbody>';
@@ -2582,7 +2577,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       html += '<tr><th scope="row">' + (r + 1) + '</th>';
       state.cols.forEach(function (c) {
         var orig = state.rows[r][c.idx];
-        if (c.status === 'hide') { html += '<td class="hidden-col" title="Removed">—</td>'; return; }
+        if (c.status === 'hide') { html += '<td class="hidden-col" title="Left out">—</td>'; return; }
         var after = map[c.idx];
         if (after !== String(orig)) {
           html += '<td dir="auto" class="changed"><span class="after">' + esc(trunc(after, 60)) + '</span>' +
@@ -2593,26 +2588,43 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     });
     html += '</tbody></table>';
     box.innerHTML = html;
-    $('#preview-note').textContent = 'Showing the first ' + idx.length + ' of ' + fmtInt(outputIndices().length) + ' rows to download.';
+    $('#preview-note').textContent = 'Showing ' + idx.length + ' of the ' + fmtInt(outputIndices().length) + ' rows you will download.' +
+      (state.rowsMode === 'random' ? ' The tool picked them at random. The number is the row in your file.' : ' The number is the row in your file.');
   }
 
+  function rowsSummary() {
+    var n = state.rows.length, k = Math.min(state.rowsN, n);
+    if (state.rowsMode === 'first') return 'You will download the first ' + fmtInt(k) + (k === 1 ? ' row' : ' rows') + ' of ' + fmtInt(n) + '.';
+    if (state.rowsMode === 'random') return 'You will download ' + fmtInt(k) + ' random ' + (k === 1 ? 'row' : 'rows') + ' out of ' + fmtInt(n) + '.';
+    return 'You will download all ' + fmtInt(n) + ' rows.';
+  }
   function renderRowsControls() {
+    var n = state.rows.length, all = state.rowsMode === 'all';
     $$('input[name=rows-mode]').forEach(function (rb) { rb.checked = rb.value === state.rowsMode; });
-    $('#rows-n').value = state.rowsN;
-    $('#rows-n').disabled = state.rowsMode === 'all';
-    $('#resample').disabled = state.rowsMode !== 'random';
+    $('#rows-total').textContent = n ? '(' + fmtInt(n) + ')' : '';
+    $('#rows-n').value = Math.min(state.rowsN, n || state.rowsN);
+    $('#rows-n').max = n || '';
+    $('#rows-n-h').textContent = n ? 'Choose a number from 1 to ' + fmtInt(n) + '.' : '';
+    $('#rows-n').closest('.field').hidden = all;
+    $('#resample').closest('.field').hidden = state.rowsMode !== 'random';
+    $('#rows-extra').hidden = all;
+    $('#rows-summary').textContent = n ? rowsSummary() : '';
   }
   function initExport() {
     $$('input[name=rows-mode]').forEach(function (rb) {
-      rb.addEventListener('change', function () { state.rowsMode = rb.value; renderRowsControls(); bump(); });
+      rb.addEventListener('change', function () {
+        state.rowsMode = rb.value; renderRowsControls(); bump(); renderPreview(); announce(rowsSummary());
+      });
     });
     $('#rows-n').addEventListener('input', function (e) {
       var v = parseInt(e.target.value, 10);
-      if (v > 0) { state.rowsN = v; bump(); }
+      if (!(v > 0)) return;
+      state.rowsN = Math.min(v, state.rows.length);
+      renderRowsControls(); bump(); renderPreview();
     });
-    $('#resample').addEventListener('click', function () { state.sampleIdx = null; state.sampleKey = ''; bump(); announce('A new random sample is ready.'); });
+    $('#rows-n').addEventListener('change', renderRowsControls);
+    $('#resample').addEventListener('click', function () { state.sampleIdx = null; state.sampleKey = ''; bump(); renderPreview(); announce('The tool picked different random rows.'); });
     $('#prev-orig').addEventListener('change', renderPreview);
-    $('#gen-btn').addEventListener('click', function () { generate(); });
     $('#dl-csv').addEventListener('click', function () {
       freshResult().then(function (res) {
         noteData(res);
@@ -2633,10 +2645,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     $('#copy-data').addEventListener('click', function () {
       freshResult().then(function (res) {
         noteData(res);
-        copyText(toCSV([res.header].concat(res.rows), true), 'Masked data (' + fmtInt(res.rows.length) + ' rows) copied as CSV text.');
+        copyText(toCSV([res.header].concat(res.rows), true), 'Copied the masked data (' + fmtInt(res.rows.length) + ' rows) as CSV text.');
       });
     });
-    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Column names copied.'); });
+    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Copied the column names.'); });
     $('#dl-schema').addEventListener('click', function () { download('column-names-' + stamp() + '.txt', '﻿' + schemaText(), 'text/plain;charset=utf-8'); });
     // The match file always belongs to the masked data the user last downloaded. Sequential codes depend
     // on every setting, so a match file made from other settings would point codes at the wrong people.
@@ -2644,7 +2656,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     $('#dl-key').addEventListener('click', function () {
       (state.lastData ? Promise.resolve(state.lastData) : freshResult()).then(function (res) {
         if (!res.keyRows.length && !res.shiftCols.length) {
-          setMsg($('#export-msg'), 'info', 'This download has no codes and no shifted dates, so it needs no match file.');
+          setMsg($('#export-msg'), 'info', 'This download has no codes and no moved dates, so it needs no match file.');
           return;
         }
         pendingKey = res;
@@ -2661,7 +2673,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       state.lastData = res; state.dlKey = res.runId;
       download('MATCH-FILE-' + res.runId + '-' + stamp() + '-KEEP-ON-THIS-PC.csv', '﻿' + toCSV(keyAoa(res)), 'text/csv;charset=utf-8');
       if (!state.dlData) state.dlData = '';
-      if (res.version !== state.version) setMsg($('#export-msg'), 'warn', 'You changed settings after the last masked download. This match file fits that download (run ' + esc(res.runId) + '). To use the new settings, download the masked data again, then the match file again.');
+      if (res.version !== state.version) setMsg($('#export-msg'), 'warn', 'You changed settings after the last masked download. This match file fits that download (run ' + esc(res.runId) + '). To use the new settings, download the masked data again. Then download the match file again.');
       else checkRunMismatch();
       renderExport();
     });
@@ -2677,7 +2689,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   }
   function checkRunMismatch() {
     if (state.dlData && state.dlKey && state.dlData !== state.dlKey) {
-      setMsg($('#export-msg'), 'warn', 'The match file you downloaded (run ' + esc(state.dlKey) + ') does not fit the masked data you just downloaded (run ' + esc(state.dlData) + '), because the settings changed in between. Download the match file again.');
+      setMsg($('#export-msg'), 'warn', 'The match file (run ' + esc(state.dlKey) + ') does not fit the masked data you just downloaded (run ' + esc(state.dlData) + '). The settings changed in between. Download the match file again.');
     } else if (state.dlData && state.dlData === state.dlKey) {
       setMsg($('#export-msg'), '', '');
     }
@@ -2746,16 +2758,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     var box = $('#export-status');
     if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
     if (!fresh) {
-      box.innerHTML = '<p class="msg info">Press <b>Prepare masked data</b> to process all rows. The download buttons also prepare the data when needed.</p>';
+      box.innerHTML = '';
     } else {
-      var items = ['<li><b>' + fmtInt(res.rows.length) + '</b> rows and <b>' + res.header.length + '</b> columns ready to download.</li>',
-        '<li><b>' + fmtInt(res.keyRows.length) + '</b> codes in the match file.</li>'];
-      items.push('<li>Run ID <b>' + esc(res.runId) + '</b>. It is part of the file names, so you can match a masked file to its match file.</li>');
-      if (res.shiftCols.length) items.push('<li>Dates shifted in: ' + esc(res.shiftCols.join(', ')) + '.</li>');
-      if (res.shiftCols.length && res.shiftMode === 'row' && !res.anchor) items.push('<li class="warn-t">No masked column has a different code in every row. To restore the dates later, the file must keep the same row order.</li>');
-      if (res.stats.scrubHits) items.push('<li>' + fmtInt(res.stats.scrubHits) + ' names, numbers or emails replaced in notes.</li>');
+      var items = ['<li><b>' + fmtInt(res.rows.length) + '</b> rows and <b>' + res.header.length + '</b> columns are ready.</li>',
+        '<li><b>' + fmtInt(res.keyRows.length) + '</b> codes are in the match file.</li>'];
+      items.push('<li>Run ID <b>' + esc(res.runId) + '</b>. Both the masked file and the match file show it in their names.</li>');
+      if (res.shiftCols.length) items.push('<li>Dates moved in: ' + esc(res.shiftCols.join(', ')) + '.</li>');
+      if (res.shiftCols.length && res.shiftMode === 'row' && !res.anchor) items.push('<li class="warn-t">No masked column has a different code in every row. To restore the dates later, keep the rows in the same order.</li>');
+      if (res.stats.scrubHits) items.push('<li>' + fmtInt(res.stats.scrubHits) + ' names, numbers or emails in notes were hidden.</li>');
       Object.keys(res.stats.unparsed).forEach(function (k) {
-        items.push('<li class="warn-t">Column <b>' + esc(k) + '</b>: the tool cannot read ' + fmtInt(res.stats.unparsed[k]) + ' values and wrote them as [?]. Check the format of those values.</li>');
+        items.push('<li class="warn-t">Column <b>' + esc(k) + '</b>: the tool cannot read ' + fmtInt(res.stats.unparsed[k]) + ' values. It wrote [?] for them. Check the format of those values.</li>');
       });
       box.innerHTML = '<ul class="facts">' + items.join('') + '</ul>';
     }
@@ -2783,9 +2795,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     var res = state.result, k = res && res.version === state.version ? res.k : null;
     if (k && k.rowsBelow) red++;
     var parts = [];
-    if (red) parts.push('<b class="err-t">' + red + (red === 1 ? ' warning' : ' warnings') + '</b>');
-    if (amber) parts.push('<b class="warn-t">' + amber + (amber === 1 ? ' column' : ' columns') + ' to read yourself</b>');
-    el.innerHTML = '<p class="msg ' + (red ? 'err' : (amber ? 'warn' : 'ok')) + '">Risk check: ' + (parts.length ? parts.join(', ') : 'no warnings so far') +
+    if (red) parts.push('<b class="err-t">' + red + (red === 1 ? ' red item' : ' red items') + '</b>');
+    if (amber) parts.push('<b class="warn-t">' + amber + (amber === 1 ? ' yellow item' : ' yellow items') + ' to read yourself</b>');
+    el.innerHTML = '<p class="msg ' + (red ? 'err' : (amber ? 'warn' : 'ok')) + '">Risk check: ' + (parts.length ? parts.join(' and ') : 'no problems found so far') +
       '. <button type="button" class="link" data-goto="p-risk">Open Risk check</button></p>';
     $('[data-goto]', el).addEventListener('click', function () { showTab('p-risk', true); });
     var tab = $('#tab-risk');
@@ -2796,48 +2808,48 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   function colList(list) { return list.map(function (c) { return '<b>' + esc(c.header) + '</b>'; }).join(', '); }
   function riskWarningsHtml(d) {
     var shiftUsed = state.cols.some(function (c) { return c.status === 'mask' && c.strategy === 'shift'; });
-    var h = '<section class="card"><h3>Personal columns set to Keep</h3>';
-    h += d.personalAccepted.length ? '<p class="msg err">These columns can hold personal data but are set to Keep: ' + colList(d.personalAccepted) + '. Change them to Mask or Remove.</p>'
-      : '<p class="msg ok">No personal column is set to Keep.</p>';
-    if (d.partialDates.length) h += '<p class="msg err">Hide part on ' + colList(d.partialDates) + ' still shows the month or day. Keep the year only, or choose Change to a range or group.</p>';
-    if (d.weakPartial.length) h += '<p class="msg err">The name start kept in ' + colList(d.weakPartial) + ' is longer than 2 characters and can identify a person.</p>';
-    if (shiftUsed && state.session.shiftMode === 'file') h += '<p class="msg warn">Shift dates uses one shift for the whole file. This choice is less safe. Anyone who knows one real date can work out every other date. Choose a different shift for each row, unless the order of dates across rows must stay the same.</p>';
+    var h = '<section class="card"><h3>Personal data still in the file</h3>';
+    h += d.personalAccepted.length ? '<p class="msg err">These columns can have personal data, but you chose Keep: ' + colList(d.personalAccepted) + '. Go back and choose Mask or Remove.</p>'
+      : '<p class="msg ok">Good. No column with personal data is set to Keep.</p>';
+    if (d.partialDates.length) h += '<p class="msg err">The column ' + colList(d.partialDates) + ' still shows the month or day. Show only the year, or choose “Replace with a group or range”.</p>';
+    if (d.weakPartial.length) h += '<p class="msg err">The first letters of the names in ' + colList(d.weakPartial) + ' can identify a person. Show 2 letters or fewer.</p>';
+    if (shiftUsed && state.session.shiftMode === 'file') h += '<p class="msg warn">All dates move by the same number of days. Someone who knows one real date can work out the others. Choose “Each row moves by a different number of days”, unless the order of dates must stay the same.</p>';
     return h + '</section>';
   }
   function riskReadHtml(d) {
-    var h = '<section class="card"><h3>Columns to read yourself</h3>';
-    h += d.freeText.length ? '<p class="msg warn">Read these columns yourself before you share: ' + colList(d.freeText) + '. Notes often mention names, phone numbers or personal matters. Mask names in notes misses nicknames and other spellings.</p>'
-      : '<p class="msg ok">No notes columns found.</p>';
-    if (d.review.length) h += '<p class="msg warn">The tool cannot tell what these columns hold, for example text in Chinese, Arabic or Thai: ' + colList(d.review) + '. They are set to Keep. Check them yourself. Names can hide there.</p>';
+    var h = '<section class="card"><h3>Text to read yourself</h3>';
+    h += d.freeText.length ? '<p class="msg warn">Read these columns before you share the file: ' + colList(d.freeText) + '. Free text often has names, phone numbers or private details. The tool misses nicknames and other spellings.</p>'
+      : '<p class="msg ok">No free-text columns found.</p>';
+    if (d.review.length) h += '<p class="msg warn">The tool cannot tell what is in these columns (for example Chinese, Arabic or Thai text): ' + colList(d.review) + '. You chose Keep. Read them yourself. Names can hide there.</p>';
     return h + '</section>';
   }
   function riskGroupResultHtml(res, k) {
-    if (!(res && res.version === state.version)) return '<p class="help">The result uses the masked data and shows after you press the button.</p>';
-    if (!k) return '<p class="msg info">No columns are ticked to combine.</p>';
+    if (!state.cols.some(function (c) { return c.qi && c.status !== 'hide'; })) return '<p class="msg info">Tick at least one detail to run this check.</p>';
+    if (!(res && res.version === state.version)) return '<p class="help">Checking…</p>';
+    if (!k) return '<p class="msg info">Tick at least one detail to run this check.</p>';
     var ok = k.rowsBelow === 0;
-    var h = '<p class="msg ' + (ok ? 'ok' : 'err') + '">' + esc(k.qiNames.join(' + ')) + '. ' + fmtInt(k.groups) + ' groups. Smallest group: ' + k.minSize + (k.minSize === 1 ? ' person. ' : ' people. ') +
-      fmtInt(k.unique) + ' people are alone in their group. ' + (ok ? 'Every group has at least ' + k.k + ' people.' :
-        fmtInt(k.rowsBelow) + ' people are in groups of fewer than ' + k.k + '. Merge small groups: for example, join small grades or units, use wider age groups, or take one column out of the combination.') + '</p>';
+    var h = ok
+      ? '<p class="msg ok">Good. Every mix is shared by at least ' + k.k + ' people. The tool found ' + fmtInt(k.groups) + ' mixes. The smallest one has ' + fmtInt(k.minSize) + (k.minSize === 1 ? ' person.' : ' people.') + '</p>'
+      : '<p class="msg err"><b>' + fmtInt(k.rowsBelow) + (k.rowsBelow === 1 ? ' person' : ' people') + '</b> can be recognised, because their mix is shared by fewer than ' + k.k + ' people. ' +
+        fmtInt(k.unique) + (k.unique === 1 ? ' is' : ' are') + ' alone in their mix. To fix this, use wider groups (for example 10-year age groups), join small groups, or untick a detail.</p>';
     if (k.small.length) {
-      h += '<div class="table-wrap small"><table class="grid"><caption>Smallest groups (up to 15)</caption><thead><tr>' + k.qiNames.map(function (n) { return '<th scope="col">' + esc(n) + '</th>'; }).join('') + '<th scope="col">Rows</th></tr></thead><tbody>';
-      k.small.slice(0, 15).forEach(function (g) { h += '<tr>' + g.values.map(function (v) { return '<td>' + esc(trunc(v, 40)) + '</td>'; }).join('') + '<td>' + g.n + '</td></tr>'; });
+      h += '<div class="table-wrap small"><table class="grid"><caption>Mixes shared by the fewest people</caption><thead><tr>' + k.qiNames.map(function (n) { return '<th scope="col">' + esc(n) + '</th>'; }).join('') + '<th scope="col">People</th></tr></thead><tbody>';
+      k.small.slice(0, 15).forEach(function (g) { h += '<tr>' + g.values.map(function (v) { return '<td dir="auto">' + esc(trunc(v, 40)) + '</td>'; }).join('') + '<td>' + g.n + '</td></tr>'; });
       h += '</tbody></table></div>';
     }
     return h;
   }
   function riskGroupHtml() {
     var res = state.result, k = res && res.version === state.version ? res.k : null;
-    var h = '<section class="card"><h3>Can someone be picked out?</h3>';
-    h += '<p class="help">If only one woman works in the Legal team, gender and team are enough to show who she is. This check finds groups that small.</p>';
-    h += '<div class="row-fields"><div class="field"><label for="k-val">Smallest group size</label><input type="number" id="k-val" min="2" step="1" value="' + state.k + '" aria-describedby="k-val-h">' +
-      '<p class="help" id="k-val-h">Each group must hold at least this many people. Usually 5.</p></div>';
-    h += '<fieldset class="field qi-list"><legend>Columns to combine</legend><div class="qi-grid">';
+    var h = '<section class="card"><h3>Can someone be recognised?</h3>';
+    h += '<p class="help">A name is not the only way to find a person. A mix of details can point to one person too. For example, only one person in the file can work in Finance and be 50 to 54 years old. This check counts how many people share each mix.</p>';
+    h += '<fieldset class="field qi-list"><legend>Details to mix</legend><div class="qi-grid">';
     state.cols.filter(function (c) { return c.status !== 'hide'; }).forEach(function (c) {
       h += '<label class="qi-item"><input type="checkbox" data-qi-col="' + c.idx + '"' + (c.qi ? ' checked' : '') + '> ' + esc(c.outName) + '</label>';
     });
-    h += '</div><p class="help">Tick columns such as grade, division, gender and age. The check uses the masked values.</p></fieldset></div>';
-    h += '<button type="button" class="btn" id="k-run">Run the check again</button>' + riskGroupResultHtml(res, k);
-    return h + '</section>';
+    h += '</div><p class="help">The tool ticked details that often identify people. Tick or untick to change. The check uses the masked values.</p></fieldset>';
+    h += '<div class="field"><label for="k-val">Every mix must be shared by at least this many people</label><input type="number" id="k-val" min="2" step="1" value="' + state.k + '" aria-describedby="k-val-h"><p class="help" id="k-val-h">Most teams use 5.</p></div>';
+    return h + riskGroupResultHtml(res, k) + '</section>';
   }
   function bindRisk(box) {
     $('#k-val').addEventListener('change', function (e) {
@@ -2853,17 +2865,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         rerenderCard(c); renderRisk(); renderRiskSummary();
       });
     });
-    $('#k-run').addEventListener('click', function () {
-      freshResult().then(function () { renderRisk(); renderRiskSummary(); $('#k-run').focus(); });
-    });
   }
   function renderRisk() {
     var box = $('#risk-body');
     if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
     var d = riskData(), v = state.validation;
     var h = riskWarningsHtml(d) + riskReadHtml(d) + riskGroupHtml();
-    if (v.missingRequired.length) h += '<section class="card"><h3>Settings file check</h3><p class="msg warn">Columns in the settings file but not in this file: ' + esc(v.missingRequired.join(', ')) + '. Check that this is the right file.</p></section>';
-    h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg warn">Masking does not change how your organisation classifies the file. Follow its rules before you share data.</p></section>';
+    if (v.missingRequired.length) h += '<section class="card"><h3>Settings file</h3><p class="msg warn">These columns are in the settings file but not in this file: ' + esc(v.missingRequired.join(', ')) + '. Check that you chose the right file.</p></section>';
+    h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg warn">Masking does not change how your organisation classifies the file. Follow its rules before you share it.</p></section>';
     box.innerHTML = h;
     bindRisk(box);
   }
@@ -2879,15 +2888,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         return Bridge.call({ type: 'open', slot: 'key', name: f.name, buf: buf });
       }).then(function (res) {
         var k = L.parseKeyRows(res.rows);
-        if (!k.key.size) throw new Error('the file holds no codes');
+        if (!k.key.size) throw new Error('the file has no codes');
         restore.key = k; restore.keyName = f.name;
-        var info = 'Match file <b>' + esc(f.name) + '</b> is open: ' + fmtInt(k.key.size) + ' codes, prefixes ' + esc(k.prefixes.join(', ')) + '.';
-        if (k.meta.shifted_date_columns) info += ' Date shifts are available for: ' + esc(k.meta.shifted_date_columns) + '.';
+        var info = 'Opened match file <b>' + esc(f.name) + '</b>. It has ' + fmtInt(k.key.size) + ' codes.';
+        if (k.meta.shifted_date_columns) info += ' It can also move dates back in: ' + esc(k.meta.shifted_date_columns) + '.';
         setMsg(msg, 'ok', info);
         updateRestoreBtn();
       }).catch(function (err) {
         restore.key = null;
-        setMsg(msg, 'err', 'The tool cannot read match file <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Choose the MATCH-FILE-….csv file you downloaded in step 3.');
+        setMsg(msg, 'err', 'The tool cannot read <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Choose the MATCH-FILE file you downloaded in step 3.');
         updateRestoreBtn();
       });
     });
@@ -2907,16 +2916,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         return Bridge.call({ type: 'open', slot: 'restore', name: f.name, buf: buf });
       }).then(function (res) {
         restore.table = res.rows; restore.tableName = f.name;
-        setMsg(msg, 'ok', 'File <b>' + esc(f.name) + '</b> is open: ' + fmtInt(Math.max(0, res.rows.length - 1)) + ' data rows' + (res.sheets.length > 1 ? ' from the first sheet, “' + esc(res.sheet) + '”' : '') + '.');
+        setMsg(msg, 'ok', 'Opened <b>' + esc(f.name) + '</b>. It has ' + fmtInt(Math.max(0, res.rows.length - 1)) + ' rows' + (res.sheets.length > 1 ? ' on the first sheet, “' + esc(res.sheet) + '”' : '') + '.');
         updateRestoreBtn();
       }).catch(function (err) {
         restore.table = null;
-        setMsg(msg, 'err', 'The tool cannot read <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Check that the file is not damaged or password-protected, then try again.');
+        setMsg(msg, 'err', 'The tool cannot read <b>' + esc(f.name) + '</b>: ' + esc(err.message) + '. Check that the file is not damaged and has no password. Then try again.');
         updateRestoreBtn();
       });
     });
     $('#restore-btn').addEventListener('click', doRestore);
-    $('#restore-copy').addEventListener('click', function () { copyText($('#restore-output').value, 'Restored text copied.'); });
+    $('#restore-copy').addEventListener('click', function () { copyText($('#restore-output').value, 'Copied the restored text.'); });
     $('#restore-dl-txt').addEventListener('click', function () { download('restored-text-' + stamp() + '.txt', '﻿' + $('#restore-output').value, 'text/plain;charset=utf-8'); });
     $('#restore-dl-csv').addEventListener('click', function () {
       if (restore.out) download(restoreBase() + '-' + stamp() + '.csv', '﻿' + toCSV(restore.out, true), 'text/csv;charset=utf-8');
@@ -2941,15 +2950,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     return h + '</tbody></table>';
   }
   function restoreMessage(stats, k, table) {
-    var html = fmtInt(stats.replaced) + ' codes changed back to real values.';
-    if (stats.unknown.size) html += '<br>Codes not in the match file (left unchanged): ' + esc(Array.from(stats.unknown).slice(0, 20).join(', ')) + (stats.unknown.size > 20 ? ' …' : '') + '. Check that the match file comes from the same download.';
+    var html = fmtInt(stats.replaced) + ' codes were changed back to real values.';
+    if (stats.unknown.size) html += '<br>These codes are not in the match file, so they stay as they are: ' + esc(Array.from(stats.unknown).slice(0, 20).join(', ')) + (stats.unknown.size > 20 ? ' …' : '') + '. Check that you chose the match file from the same download.';
     if (table) {
       var fileRun = /masked-data-([A-Z0-9]{4})-/.exec(restore.tableName || '');
-      if (fileRun && k.meta.run_id && fileRun[1] !== k.meta.run_id) html += '<br><b>The file name shows run ' + esc(fileRun[1]) + ' but the match file is from run ' + esc(k.meta.run_id) + '.</b> Check that you chose the right match file.';
-      if (table.doDates && table.rowMode && !k.meta.anchor_column) html += '<br>This match file lines up dates by row number. The file must keep the original row order.';
-      if (stats.noDateCols) html += '<br>No shifted date columns found in this file. The column names may have changed.';
-      if (stats.noOffset) html += '<br>' + stats.noOffset + ' rows have no date shift in the match file (column ' + esc(k.meta.anchor_column || 'row number') + ' does not match). Dates in those rows are left as they are.';
-      if (stats.dateFails) html += '<br>The tool cannot read ' + stats.dateFails + ' date values and left them as they are.';
+      if (fileRun && k.meta.run_id && fileRun[1] !== k.meta.run_id) html += '<br><b>The file name shows run ' + esc(fileRun[1]) + ', but the match file is from run ' + esc(k.meta.run_id) + '.</b> Check that you chose the right match file.';
+      if (table.doDates && table.rowMode && !k.meta.anchor_column) html += '<br>This match file finds each date by row number. The rows must stay in the original order.';
+      if (stats.noDateCols) html += '<br>The tool found no date columns to move back. The column names can have changed.';
+      if (stats.noOffset) html += '<br>' + stats.noOffset + ' rows have no date shift in the match file (column ' + esc(k.meta.anchor_column || 'row number') + ' does not match). Their dates stay as they are.';
+      if (stats.dateFails) html += '<br>The tool cannot read ' + stats.dateFails + ' dates. They stay as they are.';
     }
     return html;
   }
@@ -2967,7 +2976,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       $('#restore-table-out').hidden = false;
     }
     setMsg($('#restore-msg'), stats.unknown.size ? 'warn' : 'ok', restoreMessage(stats, k, table));
-    announce(stats.replaced + ' codes restored.');
+    announce(stats.replaced + ' codes were changed back.');
   }
 
   // ---------- init ----------
