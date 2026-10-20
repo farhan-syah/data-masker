@@ -3,6 +3,7 @@ const fs0 = require('fs');
 XLSX.readFile = (p, o) => XLSX.read(fs0.readFileSync(p), { type: 'buffer', ...o });
 XLSX.writeFile = (wb, p, o) => fs0.writeFileSync(p, XLSX.write(wb, { type: 'buffer', ...o }));
 const S = __dirname + '/../samples/';
+fs0.mkdirSync(__dirname + '/fixtures', { recursive: true });
 // XLS (BIFF8) copy of the sample workbook
 const wb = XLSX.readFile(S + 'staff-list-sample.xlsx', { cellNF: true, cellDates: false });
 XLSX.writeFile(wb, __dirname + '/fixtures/sample.xls', { bookType: 'biff8' });
