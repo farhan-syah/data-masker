@@ -6,9 +6,10 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { createRequire } from 'module';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const require = createRequire(import.meta.url);
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(HERE);
 const TOOL = ROOT + '/index.html';
 const SAMPLES = ROOT + '/samples/';
@@ -51,7 +52,7 @@ async function open() {
   page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('file://' + TOOL);
+  await page.goto(pathToFileURL(TOOL).href);
   await page.waitForFunction(() => window.__dm);
 }
 const tab = async id => { await page.click(`[aria-controls="${id}"]`); await page.waitForTimeout(120); };

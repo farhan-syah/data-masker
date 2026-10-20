@@ -1,7 +1,8 @@
 // Unit checks for src/logic.js. Runs in Node with no browser.
 import fs from 'fs';
 import path from 'path';
-const ROOT = path.dirname(path.dirname(new URL(import.meta.url).pathname));
+import { fileURLToPath } from 'url';
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 globalThis.self = globalThis;
 new Function(fs.readFileSync(ROOT + '/src/logic.js', 'utf8'))();
 const L = globalThis.DMLogic;
