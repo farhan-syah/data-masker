@@ -119,7 +119,7 @@
     headers: [], rows: [], cols: [], validation: null,
     sanitise: { dateFmt: 'off', dateOrder: 'dmy', trim: true, normHeader: false, ctrl: true, empty: true },
     rowsMode: 'all', rowsN: 50, sampleIdx: null, sampleKey: '',
-    k: 5, version: 0, result: null, dictCache: null,
+    version: 0, result: null, dictCache: null,
     session: {
       random: new Map(), now: new Date(), shiftDays: L.randomShiftDays(), dateFmt: 'off', dateOrder: 'dmy', shiftMode: 'row',
       rowShift: function (r) {
@@ -149,7 +149,7 @@
   STRATEGIES.forEach(function (s) { STRAT_LABEL[s[0]] = s[1]; STRAT_HELP[s[0]] = s[2]; });
   var GEN_MODES = [
     ['year', 'Year only (for dates)'], ['ageband', 'Age group (for dates)'],
-    ['band', 'Number range'], ['firstn', 'First letters (for text)'], ['region', 'Last part of an address (for example the country)']
+    ['band', 'Number range'], ['firstn', 'First letters (for text)'], ['region', 'Last part of an address (for example the country)'], ['urlhost', 'Website only, without the path (for web addresses)']
   ];
 
   function bump() {
@@ -179,11 +179,7 @@
     });
     $$('[role=tabpanel]').forEach(function (p) { p.hidden = p.id !== id; });
     if (id === 'p-columns') refreshExamples();
-    if (id === 'p-risk' && state.rows.length) {
-      renderRisk();
-      // The check on mixes of details needs the masked rows, so make them here.
-      if (!(state.result && state.result.version === state.version)) generate().then(null, function () {});
-    }
+    if (id === 'p-risk' && state.rows.length) renderRisk();
     if (id === 'p-export') { renderPreview(); renderExport(); }
     window.scrollTo(0, 0);
     if (moveFocus) {
@@ -339,9 +335,9 @@
       }
       return {
         idx: i, header: hd, norm: norm, kind: cls.kind, birth: cls.birth, personal: cls.personal, freeText: cls.freeText,
-        serialDates: cls.serialDates, qi: cls.qi, info: cls.info, status: sug.status, strategy: sug.strategy,
+        serialDates: cls.serialDates, info: cls.info, status: sug.status, strategy: sug.strategy,
         params: sug.params, outNameUser: '', outName: hd, samples: samples, sampleRows: sampleRows, presetPII: false,
-        review: cls.review, qiDefault: cls.qi
+        review: cls.review
       };
     });
     state.sanitise.dateOrder = detectDateOrder();
@@ -676,6 +672,7 @@
         if (c.kind === 'date') c.params.genMode = c.birth ? 'ageband' : 'year';
         else if (c.kind === 'money' || c.kind === 'number') { c.params.genMode = 'band'; if (!c.params.width || c.params.width < 10) c.params.width = 1000; }
         else if (c.kind === 'address') c.params.genMode = 'region';
+        else if (c.kind === 'url') c.params.genMode = 'urlhost';
         else c.params.genMode = 'firstn';
       }
       if (c.strategy === 'pseudo' && (c.params.prefix === 'CODE' || c.params.prefix === 'TOKEN') && L.DEFAULT_PREFIX[c.kind]) c.params.prefix = L.DEFAULT_PREFIX[c.kind];
@@ -702,7 +699,6 @@
     state.cols.forEach(function (c) {
       var sug = L.suggest({ kind: c.kind, birth: c.birth }, c.header);
       c.status = sug.status; c.strategy = sug.strategy; c.params = sug.params; c.outNameUser = '';
-      c.qi = c.qiDefault;
     });
     renderColumns(); bump();
     announce('Every column is back to the suggested choice.');
@@ -714,14 +710,14 @@
     var domain = $('#preset-domain').value.trim() || 'my-settings';
     var columns = {}, fieldMap = {}, pii = [];
     state.cols.forEach(function (c) {
-      columns[c.norm] = { status: c.status, strategy: c.strategy, params: c.params, qi: c.qi };
+      columns[c.norm] = { status: c.status, strategy: c.strategy, params: c.params };
       if (c.outNameUser.trim()) fieldMap[c.norm] = c.outNameUser.trim();
       if (c.personal || c.presetPII) pii.push(c.norm);
     });
     var preset = {
       format: 'data-masker-preset', version: '1.0', domain: domain,
       description: $('#preset-desc').value.trim(), created: new Date().toISOString(),
-      sanitise: state.sanitise, shift_mode: state.session.shiftMode, rows: { mode: state.rowsMode, n: state.rowsN }, k: state.k,
+      sanitise: state.sanitise, shift_mode: state.session.shiftMode, rows: { mode: state.rowsMode, n: state.rowsN },
       field_map: fieldMap, columns: columns, pii_fields: pii,
       required_fields: state.cols.map(function (c) { return c.norm; })
     };
@@ -748,7 +744,7 @@
         var dp = L.defaultParams();
         Object.keys(dp).forEach(function (k) { if (cfg.params && cfg.params[k] !== undefined) dp[k] = cfg.params[k]; });
         dp.prefix = L.cleanPrefix(dp.prefix);
-        c.params = dp; c.qi = !!cfg.qi;
+        c.params = dp;
         c.outNameUser = p.field_map && typeof p.field_map[c.norm] === 'string' ? p.field_map[c.norm] : '';
         c.presetPII = Array.isArray(p.pii_fields) && p.pii_fields.indexOf(c.norm) >= 0;
       });
@@ -757,7 +753,6 @@
       state.validation.missingRequired = missing;
       if (p.sanitise) Object.keys(state.sanitise).forEach(function (k) { if (p.sanitise[k] !== undefined) state.sanitise[k] = p.sanitise[k]; });
       if (p.rows && /^(all|first|random)$/.test(p.rows.mode)) { state.rowsMode = p.rows.mode; state.rowsN = Math.max(1, parseInt(p.rows.n, 10) || 50); state.sampleIdx = null; }
-      if (p.k) state.k = Math.max(2, parseInt(p.k, 10) || 5);
       if (p.shift_mode === 'row' || p.shift_mode === 'file') state.session.shiftMode = p.shift_mode;
       $('#preset-domain').value = p.domain || ''; $('#preset-desc').value = p.description || '';
       renderColumns(); renderSanitise(); bump();
@@ -895,17 +890,6 @@
     return c.status === 'mask' && c.strategy === 'num';
   }
 
-  function kResult(header, rows) {
-    var qi = [];
-    state.cols.forEach(function (c) {
-      if (c.qi && c.status !== 'hide') { var j = header.indexOf(c.outName); if (j >= 0) qi.push(j); }
-    });
-    if (!qi.length) return null;
-    var r = L.kAnonymity(rows, qi, state.k);
-    r.qiNames = qi.map(function (j) { return header[j]; });
-    return r;
-  }
-
   async function processRows(idx, run, version, onProgress) {
     var rows = new Array(idx.length);
     for (var i = 0; i < idx.length; i++) {
@@ -937,7 +921,7 @@
       version: version, header: header, rows: rows, keyRows: run.ctx.keyRows, stats: run.ctx.stats,
       numeric: run.outCols.map(isNumericOut), shiftCols: shiftCols, shiftDays: state.session.shiftDays,
       shiftMode: state.session.shiftMode, rowShifts: rowShifts, anchor: anchor, dateOrder: fmt === 'dmy' || fmt === 'mdy' ? fmt : state.sanitise.dateOrder,
-      k: kResult(header, rows), at: new Date(), runId: L.randomCode(4)
+      at: new Date(), runId: L.randomCode(4)
     };
   }
 
@@ -1140,7 +1124,7 @@
     switch (c.strategy) {
       case 'pseudo': return 'Replace with code (' + L.cleanPrefix(p.prefix) + '_…)';
       case 'partial': return 'Hide part (keep ' + (parseInt(p.keepN, 10) || 0) + ' characters at the ' + (p.side === 'first' ? 'start' : 'end') + ')';
-      case 'gen': return 'Change to a range or group (' + ({ year: 'year', ageband: p.width + '-year age group', band: 'range of ' + p.width, firstn: 'first ' + p.firstN + ' characters', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
+      case 'gen': return 'Change to a range or group (' + ({ year: 'year', ageband: p.width + '-year age group', band: 'range of ' + p.width, firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
       case 'shift': return state.session.shiftMode === 'file' ? 'Shift dates (one shift for the file)' : 'Shift dates (a different shift for each row)';
       case 'num': return p.numMode === 'noise' ? 'Round or adjust numbers (random change ±' + p.noisePct + '%)' : 'Round or adjust numbers (round to ' + p.roundTo + ')';
       case 'fixed': return 'Replace with fixed text';
@@ -1212,8 +1196,6 @@
     var el = $('#risk-summary');
     if (!state.rows.length) { el.innerHTML = ''; return; }
     var d = riskData(), red = d.personalAccepted.length + d.partialDates.length + d.weakPartial.length, amber = d.freeText.length + d.review.length;
-    var res = state.result, k = res && res.version === state.version ? res.k : null;
-    if (k && k.rowsBelow) red++;
     var parts = [];
     if (red) parts.push('<b class="err-t">' + red + (red === 1 ? ' red item' : ' red items') + '</b>');
     if (amber) parts.push('<b class="warn-t">' + amber + (amber === 1 ? ' yellow item' : ' yellow items') + ' to read yourself</b>');
@@ -1240,61 +1222,17 @@
     var h = '<section class="card"><h3>Text to read yourself</h3>';
     h += d.freeText.length ? '<p class="msg warn">Read these columns before you share the file: ' + colList(d.freeText) + '. Free text often has names, phone numbers or private details. The tool misses nicknames and other spellings.</p>'
       : '<p class="msg ok">No free-text columns found.</p>';
-    if (d.review.length) h += '<p class="msg warn">The tool cannot tell what is in these columns (for example Chinese, Arabic or Thai text): ' + colList(d.review) + '. You chose Keep. Read them yourself. Names can hide there.</p>';
+    if (d.review.length) h += '<p class="msg warn">The tool cannot tell what is in these columns, or most of their values are different: ' + colList(d.review) + '. You chose Keep. Read them yourself. Names, IDs and other private values can hide there.</p>';
     return h + '</section>';
-  }
-  function riskGroupResultHtml(res, k) {
-    if (!state.cols.some(function (c) { return c.qi && c.status !== 'hide'; })) return '<p class="msg info">Tick at least one detail to run this check.</p>';
-    if (!(res && res.version === state.version)) return '<p class="help">Checking…</p>';
-    if (!k) return '<p class="msg info">Tick at least one detail to run this check.</p>';
-    var ok = k.rowsBelow === 0;
-    var h = ok
-      ? '<p class="msg ok">Good. Every mix is shared by at least ' + k.k + ' people. The tool found ' + fmtInt(k.groups) + ' mixes. The smallest one has ' + fmtInt(k.minSize) + (k.minSize === 1 ? ' person.' : ' people.') + '</p>'
-      : '<p class="msg err"><b>' + fmtInt(k.rowsBelow) + (k.rowsBelow === 1 ? ' person' : ' people') + '</b> can be recognised, because their mix is shared by fewer than ' + k.k + ' people. ' +
-        fmtInt(k.unique) + (k.unique === 1 ? ' is' : ' are') + ' alone in their mix. To fix this, use wider groups (for example 10-year age groups), join small groups, or untick a detail.</p>';
-    if (k.small.length) {
-      h += '<div class="table-wrap small"><table class="grid"><caption>Mixes shared by the fewest people</caption><thead><tr>' + k.qiNames.map(function (n) { return '<th scope="col">' + esc(n) + '</th>'; }).join('') + '<th scope="col">People</th></tr></thead><tbody>';
-      k.small.slice(0, 15).forEach(function (g) { h += '<tr>' + g.values.map(function (v) { return '<td dir="auto">' + esc(trunc(v, 40)) + '</td>'; }).join('') + '<td>' + g.n + '</td></tr>'; });
-      h += '</tbody></table></div>';
-    }
-    return h;
-  }
-  function riskGroupHtml() {
-    var res = state.result, k = res && res.version === state.version ? res.k : null;
-    var h = '<section class="card"><h3>Can someone be recognised?</h3>';
-    h += '<p class="help">A name is not the only way to find a person. A mix of details can point to one person too. For example, only one person in the file can work in Finance and be 50 to 54 years old. This check counts how many people share each mix.</p>';
-    h += '<fieldset class="field qi-list"><legend>Details to mix</legend><div class="qi-grid">';
-    state.cols.filter(function (c) { return c.status !== 'hide'; }).forEach(function (c) {
-      h += '<label class="qi-item"><input type="checkbox" data-qi-col="' + c.idx + '"' + (c.qi ? ' checked' : '') + '> ' + esc(c.outName) + '</label>';
-    });
-    h += '</div><p class="help">The tool ticked details that often identify people. Tick or untick to change. The check uses the masked values.</p></fieldset>';
-    h += '<div class="field"><label for="k-val">Every mix must be shared by at least this many people</label><input type="number" id="k-val" min="2" step="1" value="' + state.k + '" aria-describedby="k-val-h"><p class="help" id="k-val-h">Most teams use 5.</p></div>';
-    return h + riskGroupResultHtml(res, k) + '</section>';
-  }
-  function bindRisk(box) {
-    $('#k-val').addEventListener('change', function (e) {
-      state.k = Math.max(2, parseInt(e.target.value, 10) || 5);
-      if (state.result) { state.result.k = kResult(state.result.header, state.result.rows); }
-      renderRisk(); renderRiskSummary();
-    });
-    $$('[data-qi-col]', box).forEach(function (cb) {
-      cb.addEventListener('change', function () {
-        var c = state.cols[+cb.getAttribute('data-qi-col')];
-        c.qi = cb.checked;
-        if (state.result) state.result.k = kResult(state.result.header, state.result.rows);
-        rerenderCard(c); renderRisk(); renderRiskSummary();
-      });
-    });
   }
   function renderRisk() {
     var box = $('#risk-body');
     if (!state.rows.length) { box.innerHTML = '<p class="help">Open a file first.</p>'; return; }
     var d = riskData(), v = state.validation;
-    var h = riskWarningsHtml(d) + riskReadHtml(d) + riskGroupHtml();
+    var h = riskWarningsHtml(d) + riskReadHtml(d);
     if (v.missingRequired.length) h += '<section class="card"><h3>Settings file</h3><p class="msg warn">These columns are in the settings file but not in this file: ' + esc(v.missingRequired.join(', ')) + '. Check that you chose the right file.</p></section>';
     h += '<section class="card"><h3>Your organisation\'s rules</h3><p class="msg warn">Masking does not change how your organisation classifies the file. Follow its rules before you share it.</p></section>';
     box.innerHTML = h;
-    bindRisk(box);
   }
 
   // ---------- restore ----------

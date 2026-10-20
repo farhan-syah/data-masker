@@ -169,10 +169,6 @@ table.help-table th { background: #F4F4F5; }
 .params .field { flex: 1 1 180px; }
 .params .msg { flex-basis: 100%; }
 .col-extra .field { margin-bottom: 8px; }
-.qi-list { flex: 1 1 420px; }
-.qi-grid { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.qi-item { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; }
-.qi-item input { width: 16px; height: 16px; accent-color: var(--primary); }
 details.card > summary { cursor: pointer; font-weight: 600; }
 details.card[open] > summary { margin-bottom: 12px; }
 .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -537,11 +533,14 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   </section>
   <section>
     <h3>What the tool recognises</h3>
-    <p>The tool reads English column names. It also finds these value patterns:</p>
+    <p>The tool reads column names in many languages, including English, French, Spanish, German, Chinese, Japanese, Korean, Arabic and Russian. It also finds these value patterns:</p>
     <ul>
       <li>National IDs like 123-45-6789</li>
+      <li>Payment card numbers, IP addresses and map coordinates</li>
+      <li>Private categories such as diagnosis, religion and ethnicity</li>
       <li>Phone numbers like +44 20 7946 0958 or (415) 555-0100</li>
-      <li>Dates like 25/12/2004, 12/25/2004, 2004-12-25 or 25 Dec 2004</li>
+      <li>Dates like 25/12/2004, 12/25/2004, 2004-12-25, 25 Dec 2004, 12 janvier 1991 or 1991年9月12日</li>
+      <li>Web addresses. The tool keeps the website and removes the path.</li>
       <li>Money like $1,250.00 or EUR 900.50</li>
       <li>Addresses with a street word or a postcode</li>
     </ul>
@@ -563,10 +562,10 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
     <ul>
       <li>The suggestions can be wrong. Check every column.</li>
       <li>The tool finds names in notes only when the name is in a name column. It misses nicknames and other spellings.</li>
-      <li>A mix of details, such as job level and team, can point to one person. Use the Risk check to find these mixes.</li>
-      <li>Month names must be English. Use number dates for other languages.</li>
+      <li>A mix of details, such as job level, team and age group, can still point to one person. Before you share, count how many people have each mix. Merge groups that have fewer than 5 people.</li>
+      <li>Month names work in English, French, Spanish, Portuguese, Italian, German, Dutch and Turkish. For other languages, use number dates.</li>
       <li>If letters look wrong, choose another text encoding in step 1.</li>
-      <li>Chinese, Arabic and other scripts without capital letters get a “Check” label. Read those columns yourself.</li>
+      <li>The tool puts a “Check this column” label on text it cannot classify. This includes Chinese and Arabic text, and columns where most values are different. Read those columns yourself.</li>
       <li>Excel formulas are not calculated. The tool reads the values saved in the cells.</li>
       <li>Restore moves shifted dates back only in CSV and Excel files. Pasted text keeps shifted dates.</li>
     </ul>

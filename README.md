@@ -18,10 +18,10 @@ The tool suggests. You decide. Check every column before you share anything.
 
 | Limit | What you must do |
 |---|---|
-| It reads English column names. | For other languages, check every column. |
+| It reads column names in English, French, Spanish, Portuguese, Italian, German, Dutch, Chinese, Japanese, Korean, Arabic, Russian, Hindi and Thai. | For other languages, check every column. |
 | It finds names in notes only when the name is in a name column. | Read free-text columns yourself. |
-| Month names must be English. | Use number dates. |
-| A mix of details can point to one person. | Use the Risk check. |
+| Month names work in English, French, Spanish, Portuguese, Italian, German, Dutch and Turkish. | For other languages, use number dates. |
+| A mix of details can point to one person. | Count how many people share each mix. Merge groups of fewer than 5. |
 | Masking does not change how your organisation classifies the file. | Follow your organisation's rules. |
 
 ## Browsers and files
@@ -64,15 +64,19 @@ Share the least data you can. Column names only is safest. A masked sample is ne
 |---|---|
 | Person name | `name`, `full name`, `surname`. Two or more capitalised words. |
 | National ID | `national id`, `SSN`, `passport`. Values like `123-45-6789`. |
-| Reference ID | `employee id`, `customer no`, `patient code`. |
+| Reference ID | `employee id`, `customer no`, `patient code`, `username`, `account`. Payment card numbers and IP addresses. Plain digit numbers of one length. |
+| Age | `age`, `edad`, `年龄`. The tool groups ages in 5-year steps. |
 | Email | `email`. Values with `@`. |
 | Phone | `phone`, `mobile`. 7 to 15 digits with `+`, brackets, spaces, dots or dashes. |
-| Address | `address`, `street`, `zip`. A street word or a postcode. |
-| Date | `date`, `dob`, `birth`. `25/12/2004`, `12/25/2004`, `2004-12-25`, `25 Dec 2004`. |
+| Address | `address`, `street`, `zip`. A street word or a postcode. Japanese, Chinese and Korean addresses keep the first area only. |
+| Date | `date`, `dob`, `birth`. `25/12/2004`, `12/25/2004`, `2004-12-25`, `25 Dec 2004`, `12 janvier 1991`, `1991年9月12日`. |
 | Money | `salary`, `amount`, `price`. `$1,250.00`, `EUR 900.50`, `1.234,56`. |
-| Free text | `notes`, `comments`. Long text. |
+| Web address | `url`, `website`. The tool keeps the website and removes the path. |
+| Free text | `notes`, `comments`, `message`. Long text, or short text with many words. |
+| Location | `lat`, `lng`, `gps`. The tool rounds coordinates to about 11 km. |
+| Private category | `diagnosis`, `religion`, `ethnicity`. The tool replaces values with codes. |
 
-Other languages work when the values match these patterns. Chinese, Arabic and other scripts without capital letters get a **Check this column** label.
+Other languages work when the values match these patterns. The tool puts a **Check this column** label on text it cannot classify. This includes Chinese and Arabic text, and columns where most values are different.
 
 ## Match file
 
@@ -101,6 +105,7 @@ Format: a CSV with the header `code,original_value,column`. Rows that start with
 - Restore moves shifted dates back only in CSV and Excel files. In row mode, the file must keep the anchor column or the original row order.
 - A first name found alone in a note becomes `[NAME]`. Restore cannot return it.
 - A value that cannot be read becomes `[?]`. The page counts these.
+- Thai dates in the Buddhist era (year + 543) give correct age groups. Other calendars, such as Hijri, are not converted.
 - The tool does not calculate Excel formulas. It reads the saved values. Password-protected workbooks do not open.
 - A masked or restored value that a spreadsheet could run as a formula gets a leading apostrophe. That means a value starting with `=` or `@`, or with `+` or `-` before a letter.
 - Excel files from this tool have no cell styles.

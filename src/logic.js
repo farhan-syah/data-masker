@@ -63,13 +63,26 @@
     postcode: /(^|[^A-Za-z0-9])(?:\d{5}(?:-\d{4})?|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}|[A-Z]\d[A-Z]\s?\d[A-Z]\d)($|[^A-Za-z0-9])/,
     nameLike: /^\p{Lu}[\p{L}'’.\-]*(?:\s+(?:(?:van|von|der|den|de|del|della|di|da|dos|du|la|le|bin|binti|ibn|bint|al|el|ben|bar|ap)|\p{Lu}[\p{L}'’.\-]*))+$/u,
     nameCaps: /^\p{Lu}[\p{Lu}'’.\-]+(?:\s+\p{Lu}[\p{Lu}'’.\/\-]*)+$/u,
+    urlG: /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi,
     emailG: /[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[A-Za-z]{2,}/g,
     // National ID shapes in free text: 3-2-4 and 6-2-4 digits, long digit runs, UK NINO, IBAN.
-    idG: /(?<![\d-])\d{3}[- ]\d{2}[- ]\d{4}(?![\d-])|(?<![\d-])\d{6}-\d{2}-\d{4}(?![\d-])|(?<![\d.,+-])\d{9,16}(?![\d.,-])|\b[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]\b|\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,3})?\b/g,
+    idG: /(?<![\d-])\d{3}[- ]\d{2}[- ]\d{4}(?![\d-])|(?<![\d-])\d{6}-\d{2}-\d{4}(?![\d-])|(?<![\d.,+-])\d{9,16}(?![\d.,-])|\b[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]\b|\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,3})?\b|(?<![\d-])\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,7}(?![\d-])/g,
+    ipG: /(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])/g,
     // Candidate phone numbers in free text. scrubText checks the digit count before it replaces one.
     phoneG: /(?<![\w+])(?=[+(\d])(?:\+\d{8,15}|(?:\+\d{1,3}[\s.-]?)?(?:\(\d{1,4}\)[\s.-]?)?\d{2,5}(?:[\s.-]\d{2,6}){1,3})(?![\w-])/g
   };
   function validNationalId(s) { return RX.nationalId.test(String(s).trim()); }
+  var IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
+  // A payment card number: 13 to 19 digits that pass the Luhn check.
+  function isCardNumber(s) {
+    var t = String(s).trim();
+    if (!/^[\d -]+$/.test(t)) return false;
+    var d = t.replace(/\D/g, '');
+    if (d.length < 13 || d.length > 19) return false;
+    var sum = 0, dbl = false;
+    for (var i = d.length - 1; i >= 0; i--) { var x = +d[i]; if (dbl) { x *= 2; if (x > 9) x -= 9; } sum += x; dbl = !dbl; }
+    return sum % 10 === 0;
+  }
   // Letters that have no upper and lower case, such as Chinese, Arabic, Hebrew, Thai and Korean.
   function isCaseless(t) { return /\p{L}/u.test(t) && t.toLowerCase() === t && t.toUpperCase() === t; }
   // Lower-case a string without changing its length, so positions line up with the original text.
@@ -81,8 +94,19 @@
   var MONTHS = {
     jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4, may: 5, jun: 6, june: 6,
     jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9, september: 9, oct: 10, october: 10,
-    nov: 11, november: 11, dec: 12, december: 12
+    nov: 11, november: 11, dec: 12, december: 12,
+    // French, Spanish, Portuguese, Italian, German, Dutch and Turkish (accents removed, lower case)
+    janvier: 1, janv: 1, fevrier: 2, fevr: 2, mars: 3, avril: 4, avr: 4, juin: 6, juillet: 7, juil: 7, aout: 8, septembre: 9, octobre: 10, novembre: 11, decembre: 12,
+    enero: 1, ene: 1, febrero: 2, marzo: 3, abr: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, ago: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12, dic: 12,
+    janeiro: 1, fevereiro: 2, abril: 4, maio: 5, junho: 6, julho: 7, setembro: 9, outubro: 10, dezembro: 12, dez: 12, fev: 2, out: 10, set: 9,
+    gennaio: 1, gen: 1, febbraio: 2, aprile: 4, maggio: 5, mag: 5, giugno: 6, giu: 6, luglio: 7, lug: 7, settembre: 9, ottobre: 10, ott: 10, dicembre: 12,
+    januar: 1, februar: 2, marz: 3, mai: 5, juni: 6, juli: 7, oktober: 10, okt: 10, dezember: 12, mrz: 3,
+    maart: 3, mei: 5, augustus: 8, mrt: 3,
+    ocak: 1, subat: 2, mart: 3, nisan: 4, mayis: 5, haziran: 6, temmuz: 7, agustos: 8, eylul: 9, ekim: 10, kasim: 11, aralik: 12
   };
+  function monthOf(tok) {
+    return MONTHS[tok.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()];
+  }
   var MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var MON_EN_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -129,18 +153,24 @@
       if (!validYMD(y, mo, d)) return null;
       return { y: y, m: mo, d: d, fmt: { order: mdy ? 'mdy' : 'dmy', sep: m[2], padM: mTok.length === 2, padD: dTok.length === 2, yy: m[4].length === 2, suffix: suffix } };
     }
-    m = /^(\d{1,2})[\s-]+([A-Za-z]{3,9})\.?[\s-,]+(\d{4})$/.exec(s);
-    if (m && MONTHS[m[2].toLowerCase()]) {
-      d = +m[1]; mo = MONTHS[m[2].toLowerCase()]; y = +m[3];
+    m = /^(\d{1,2})(?:er|º)?[\s-]+(?:de\s+|di\s+)?(\p{L}{3,10})\.?[\s,-]+(?:de\s+)?(\d{4})$/u.exec(s);
+    if (m && monthOf(m[2])) {
+      d = +m[1]; mo = monthOf(m[2]); y = +m[3];
       if (!validYMD(y, mo, d)) return null;
       var sepM = /^\d{1,2}-/.test(s) ? '-' : ' ';
       return { y: y, m: mo, d: d, fmt: { order: 'dmony', sep: sepM, padD: m[1].length === 2, mon: monthStyle(m[2]), suffix: '' } };
     }
-    m = /^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/.exec(s);
-    if (m && MONTHS[m[1].toLowerCase()]) {
-      d = +m[2]; mo = MONTHS[m[1].toLowerCase()]; y = +m[3];
+    m = /^(\p{L}{3,10})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/u.exec(s);
+    if (m && monthOf(m[1])) {
+      d = +m[2]; mo = monthOf(m[1]); y = +m[3];
       if (!validYMD(y, mo, d)) return null;
       return { y: y, m: mo, d: d, fmt: { order: 'mdony', padD: m[2].length === 2, mon: monthStyle(m[1]), suffix: '' } };
+    }
+    m = /^(\d{4})\s*([年년])\s*(\d{1,2})\s*([月월])\s*(\d{1,2})\s*([日일]?)$/.exec(s);
+    if (m) {
+      y = +m[1]; mo = +m[3]; d = +m[5];
+      if (!validYMD(y, mo, d)) return null;
+      return { y: y, m: mo, d: d, fmt: { order: 'cjk', ch: [m[2], m[4], m[6]], sp: /\s/.test(s), suffix: '' } };
     }
     if (allowSerial && /^\d{4,5}(\.\d+)?$/.test(s)) {
       var v = parseFloat(s);
@@ -172,6 +202,9 @@
       parts = [{ t: 'd', v: f.padD ? pad(dt.d, 2) : String(dt.d) }, { t: 's', v: f.sep }, { t: 'm', v: f.padM ? pad(dt.m, 2) : String(dt.m) }, { t: 's', v: f.sep }, { t: 'y', v: f.yy ? pad(dt.y % 100, 2) : pad(dt.y, 4) }];
     } else if (f.order === 'mdy') {
       parts = [{ t: 'm', v: f.padM ? pad(dt.m, 2) : String(dt.m) }, { t: 's', v: f.sep }, { t: 'd', v: f.padD ? pad(dt.d, 2) : String(dt.d) }, { t: 's', v: f.sep }, { t: 'y', v: f.yy ? pad(dt.y % 100, 2) : pad(dt.y, 4) }];
+    } else if (f.order === 'cjk') {
+      var sp = f.sp ? ' ' : '';
+      parts = [{ t: 'y', v: pad(dt.y, 4) }, { t: 's', v: f.ch[0] + sp }, { t: 'm', v: String(dt.m) }, { t: 's', v: f.ch[1] + sp }, { t: 'd', v: String(dt.d) }, { t: 's', v: f.ch[2] }];
     } else if (f.order === 'mdony') {
       parts = [{ t: 'm', v: monthName(dt.m, f.mon) }, { t: 's', v: ' ' }, { t: 'd', v: f.padD ? pad(dt.d, 2) : String(dt.d) }, { t: 's', v: ', ' }, { t: 'y', v: pad(dt.y, 4) }];
     } else {
@@ -209,36 +242,58 @@
   var KIND_LABEL = {
     name: 'Person name', national_id: 'National ID / passport no.', id: 'Reference no. / ID', email: 'Email', phone: 'Phone',
     address: 'Address', date: 'Date', money: 'Money', number: 'Number', text: 'Free text',
-    category: 'Category', empty: 'Empty'
+    category: 'Category', empty: 'Empty', location: 'Location (coordinates)', url: 'Web address'
   };
-  var PERSONAL_KINDS = { name: 1, national_id: 1, id: 1, email: 1, phone: 1, address: 1 };
+  var PERSONAL_KINDS = { name: 1, national_id: 1, id: 1, email: 1, phone: 1, address: 1, location: 1, url: 1 };
   var DEFAULT_PREFIX = { name: 'PERSON', national_id: 'NID', id: 'ID', email: 'EMAIL', phone: 'PHONE', address: 'ADDRESS' };
 
+  // Header words in scripts that have no spaces or case (matched anywhere in the name) and in Cyrillic, Arabic and Indic scripts.
+  var I18N = {
+    name: ['姓名', '名前', '氏名', '이름', '성명', 'الاسم', 'اسم', 'имя', 'фамилия', 'фио', 'नाम', 'ชื่อ'],
+    phone: ['电话', '手机', '電話', '携帯', '전화', '휴대폰', 'هاتف', 'جوال', 'телефон', 'мобильный', 'फोन', 'โทร'],
+    email: ['邮箱', '电子邮件', 'メール', '이메일', 'بريد', 'почта', 'ईमेल', 'อีเมล'],
+    address: ['地址', '住所', '주소', 'عنوان', 'адрес', 'पता', 'ที่อยู่'],
+    birth: ['出生', '生日', '生年月日', '생년월일', 'الميلاد', 'рождения', 'जन्म', 'วันเกิด'],
+    nid: ['身份证', '身分證', '护照', '護照', '運転免許', 'マイナンバー', '주민등록', '여권', 'الهوية', 'جواز', 'паспорт', 'инн', 'снилс', 'आधार', 'บัตรประชาชน'],
+    text: ['备注', '备考', '説明', '備考', '메모', '비고', 'ملاحظات', 'примечание', 'комментарий', 'टिप्पणी', 'หมายเหตุ'],
+    sensitive: ['诊断', '宗教', '民族', '診断', '진단', '종교', 'تشخيص', 'دين', 'диагноз', 'религия', 'निदान', 'ศาสนา'],
+    money: ['工资', '金额', '給与', '月給', '급여', '금액', 'راتب', 'مبلغ', 'зарплата', 'сумма', 'वेतन', 'เงินเดือน'],
+    id: ['编号', '工号', '学号', '番号', '번호', 'رقم', 'номер', 'หมายเลข'],
+    geo: ['纬度', '经度', '緯度', '経度', '위도', '경도', 'широта', 'долгота'],
+    age: ['年龄', '年齢', '나이', 'العمر', 'возраст', 'उम्र', 'อายุ'],
+    date: ['日期', '日付', '날짜', 'تاريخ', 'дата', 'तारीख', 'วันที่'],
+    url: ['网址', '链接', 'ウェブ', 'リンク', '링크', 'رابط', 'ссылка']
+  };
   function headerHint(norm) {
-    norm = norm.normalize('NFD').replace(/\p{M}/gu, '');
+    norm = norm.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
     var t = norm.split('_').filter(Boolean);
     function has() { for (var i = 0; i < arguments.length; i++) if (t.indexOf(arguments[i]) >= 0) return true; return false; }
     function inc() { for (var i = 0; i < arguments.length; i++) if (norm.indexOf(arguments[i]) >= 0) return true; return false; }
-    var r = { kind: null, birth: false, qi: false };
-    if (has('grade', 'level', 'rank', 'department', 'division', 'unit', 'section', 'team', 'branch', 'office', 'site', 'position', 'title',
-      'role', 'job', 'gender', 'sex', 'race', 'ethnicity', 'religion', 'age', 'state', 'province', 'region', 'city', 'country',
-      'nationality', 'class', 'category', 'group', 'school', 'location')) r.qi = true;
+    function inx(k) { return I18N[k].some(function (w) { return norm.indexOf(w.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC')) >= 0; }); }
+    var r = { kind: null, birth: false, sensitive: false, geo: false, person: false, age: false };
+    r.age = has('age', 'edad', 'alter', 'eta', 'leeftijd', 'idade') || inx('age');
+    r.person = has('patient', 'holder', 'student', 'guardian', 'customer', 'client', 'attending', 'doctor', 'physician', 'teacher', 'parent', 'spouse', 'contact', 'owner', 'author', 'applicant', 'requester', 'reporter', 'candidate', 'tenant', 'driver', 'passenger', 'recipient', 'sender', 'beneficiary', 'nominee');
+    // Health, belief and similar columns are private even though they look like plain categories.
+    r.sensitive = has('diagnosis', 'medication', 'treatment', 'disease', 'illness', 'disability', 'religion', 'ethnicity', 'race', 'orientation', 'political', 'criminal', 'conviction', 'pregnancy', 'hiv', 'allergy', 'allergies', 'symptom', 'symptoms', 'icd', 'icd9', 'icd10', 'icd11', 'snomed', 'loinc', 'cpt', 'drg', 'diagnostico', 'diagnose', 'religion', 'religiao') || inx('sensitive');
+    r.geo = has('lat', 'lng', 'lon', 'long', 'latitude', 'longitude', 'gps', 'coordinates', 'coord') || inx('geo');
     if (inc('national_id', 'nationalid', 'social_security', 'passport', 'nric', 'identity_card', 'id_card', 'driver_licen', 'tax_id', 'taxid') ||
-      has('ssn', 'nin', 'nid', 'sin', 'tin', 'passport', 'iban')) r.kind = 'national_id';
-    else if (has('email', 'mail', 'emailaddress', 'correo', 'courriel') || inc('e_mail')) r.kind = 'email';
-    else if (has('phone', 'tel', 'telephone', 'mobile', 'cell', 'cellphone', 'fax', 'msisdn', 'telefono', 'telefon', 'telefone', 'handy')) r.kind = 'phone';
-    else if (has('address', 'street', 'postcode', 'zip', 'zipcode', 'postal', 'direccion', 'adresse', 'anschrift', 'indirizzo', 'endereco')) { r.kind = 'address'; r.qi = true; }
-    else if (has('dob', 'birth', 'birthdate', 'birthday', 'born', 'geburtsdatum', 'geburtstag', 'nacimiento', 'naissance', 'nascimento')) { r.kind = 'date'; r.birth = true; r.qi = true; }
-    else if (has('date', 'dt', 'datetime', 'timestamp')) r.kind = 'date';
-    else if (has('salary', 'wage', 'wages', 'pay', 'income', 'amount', 'allowance', 'price', 'cost', 'fee', 'balance', 'revenue', 'bonus', 'compensation')) r.kind = 'money';
-    else if (has('note', 'notes', 'remark', 'remarks', 'comment', 'comments', 'description', 'reason', 'feedback', 'memo', 'narrative', 'summary')) r.kind = 'text';
-    else if (has('name', 'fullname', 'surname', 'forename', 'firstname', 'lastname', 'givenname', 'familyname', 'middlename', 'supervisor', 'manager',
-      'spouse', 'kin', 'nom', 'prenom', 'nombre', 'apellido', 'apellidos', 'vorname', 'nachname', 'nome', 'cognome') && !has('department', 'division', 'unit', 'position', 'job', 'title', 'course',
+      has('ssn', 'nin', 'nid', 'sin', 'tin', 'passport', 'iban', 'dni', 'nif', 'nie', 'curp', 'cpf', 'cnpj', 'steuernummer', 'bsn', 'passeport', 'pasaporte', 'reisepass', 'cf') || inc('codice_fiscale') || inx('nid')) r.kind = 'national_id';
+    else if (has('email', 'mail', 'emailaddress', 'correo', 'courriel', 'epost') || inc('e_mail') || inx('email')) r.kind = 'email';
+    else if (has('phone', 'tel', 'telephone', 'mobile', 'cell', 'cellphone', 'fax', 'msisdn', 'telefono', 'telefon', 'telefone', 'handy', 'telefoon', 'mobiel', 'celular', 'movil') || inx('phone')) r.kind = 'phone';
+    else if (has('address', 'street', 'postcode', 'zip', 'zipcode', 'postal', 'direccion', 'adresse', 'anschrift', 'indirizzo', 'endereco', 'adres', 'straat', 'rua', 'calle', 'domicilio') || inx('address')) r.kind = 'address';
+    else if (has('dob', 'birth', 'birthdate', 'birthday', 'born', 'geburtsdatum', 'geburtstag', 'nacimiento', 'naissance', 'nascimento', 'geboortedatum', 'nascita') || inx('birth')) { r.kind = 'date'; r.birth = true; }
+    else if (has('date', 'dt', 'datetime', 'timestamp', 'fecha', 'datum', 'datum', 'data', 'tarih') || inx('date')) r.kind = 'date';
+    else if (has('salary', 'wage', 'wages', 'pay', 'income', 'amount', 'allowance', 'price', 'cost', 'fee', 'balance', 'revenue', 'bonus', 'compensation', 'sueldo', 'salario', 'gehalt', 'salaire', 'stipendio', 'salaris', 'montant', 'importe', 'betrag') || inx('money')) r.kind = 'money';
+    else if (has('note', 'notes', 'remark', 'remarks', 'comment', 'comments', 'description', 'reason', 'feedback', 'memo', 'narrative', 'summary', 'message', 'msg', 'body', 'content', 'details', 'response', 'answer', 'text', 'notas', 'observaciones', 'bemerkung', 'notizen', 'remarques', 'osservazioni', 'opmerking', 'comentarios', 'kommentar', 'commentaires')) r.kind = 'text';
+    else if ((has('name', 'fullname', 'surname', 'forename', 'firstname', 'lastname', 'givenname', 'familyname', 'middlename', 'supervisor', 'manager',
+      'spouse', 'kin', 'nom', 'prenom', 'nombre', 'apellido', 'apellidos', 'vorname', 'nachname', 'nome', 'cognome', 'naam', 'voornaam', 'achternaam', 'apelido') || inx('name')) && !has('department', 'division', 'unit', 'position', 'job', 'title', 'course',
       'company', 'project', 'program', 'school', 'file', 'product', 'state', 'city', 'agency', 'ministry', 'section', 'branch',
       'sheet', 'journal', 'team', 'role', 'organisation', 'organization', 'country', 'region', 'street')) r.kind = 'name';
     else if (has('staff', 'employee', 'member', 'customer', 'client', 'patient', 'student', 'user', 'account', 'case', 'file') &&
-      has('no', 'id', 'number', 'num', 'code')) r.kind = 'id';
-    else if (has('id', 'empid', 'staffid', 'account', 'bank')) r.kind = 'id';
+      has('no', 'id', 'number', 'num', 'code', 'numero', 'nummer')) r.kind = 'id';
+    else if (inx('id') && !inx('date')) r.kind = 'id';
+    else if (has('url', 'uri', 'link', 'website', 'homepage', 'profile') || inx('url')) r.kind = 'url';
+    else if (has('id', 'empid', 'staffid', 'account', 'bank', 'card', 'creditcard', 'ip', 'ipaddress', 'username', 'login', 'handle', 'mrn', 'plate', 'vin', 'imei')) r.kind = 'id';
     return r;
   }
 
@@ -258,12 +313,17 @@
     }
     info.nonEmpty = nonEmptyAll;
     info.distinct = distinctSet.size;
-    var res = { kind: 'category', birth: hint.birth, qi: hint.qi, personal: false, freeText: false, serialDates: false, info: info, hintKind: hint.kind };
+    var res = { kind: 'category', birth: hint.birth, personal: false, freeText: false, serialDates: false, info: info, hintKind: hint.kind };
     if (!sample.length) { res.kind = 'empty'; return res; }
-    var n = sample.length, c = { nid: 0, email: 0, phone: 0, date: 0, serial: 0, money: 0, num: 0, addr: 0, name: 0, caseless: 0, shortCaseless: 0, word: 0, len: 0, nospace: 0 };
+    var n = sample.length, c = { url: 0, icd: 0, icdDot: 0, digitsId: 0, card: 0, ip: 0, nid: 0, email: 0, phone: 0, date: 0, serial: 0, money: 0, num: 0, addr: 0, name: 0, caseless: 0, shortCaseless: 0, word: 0, len: 0, nospace: 0 };
     var dateHint = hint.kind === 'date';
     sample.forEach(function (s) {
       if (validNationalId(s)) c.nid++;
+      if (isCardNumber(s)) c.card++;
+      if (/^(?:https?:\/\/|www\.)\S+$/i.test(s)) c.url++;
+      if (/^[A-TV-Z]\d{2}(?:\.\d{1,4})?$/.test(s)) { c.icd++; if (s.indexOf('.') > 0) c.icdDot++; }
+      if (/^\d{8,15}$/.test(s) && s.length === sample[0].length) c.digitsId++;
+      if (IPV4.test(s)) c.ip++;
       if (RX.email.test(s)) c.email++;
       var pd = parseDate(s, false) || parseDate(s, false, null, 'mdy');
       var pn = parseNumber(s);
@@ -285,6 +345,9 @@
     var distinctRatio = info.distinct / Math.max(info.nonEmpty, 1);
     var kind;
     if (R(c.nid) >= 0.6) kind = 'national_id';
+    else if (R(c.card) >= 0.6) { kind = 'id'; res.idPrefix = 'CARD'; }
+    else if (R(c.ip) >= 0.6) { kind = 'id'; res.idPrefix = 'IP'; }
+    else if (R(c.url) >= 0.6) kind = 'url';
     else if (R(c.email) >= 0.6) kind = 'email';
     else if (R(c.phone) >= 0.6 && hint.kind !== 'date' && hint.kind !== 'money') kind = 'phone';
     else if (hint.kind && hint.kind !== 'date' && hint.kind !== 'money') kind = hint.kind;
@@ -292,9 +355,12 @@
     else if (R(c.date) >= 0.8) kind = 'date';
     else if (hint.kind === 'money' && R(Math.max(c.num, c.money)) >= 0.6) kind = 'money';
     else if (R(c.money) >= 0.8) kind = 'money';
+    else if (hint.geo && R(c.num) >= 0.8) kind = 'location';
+    else if (R(c.digitsId) >= 0.9 && distinctRatio >= 0.9 && info.nonEmpty >= 10) kind = 'id';
     else if (R(c.num) >= 0.8) kind = 'number';
     else if (R(c.addr) >= 0.5) kind = 'address';
-    else if (avgLen >= 30 || avgWords >= 6) kind = 'text';
+    else if (avgLen >= 30 || avgWords >= 6 || (avgWords >= 3 && distinctRatio >= 0.5 && info.nonEmpty >= 10)) kind = 'text';
+    else if (hint.person && R(c.name) >= 0.6) kind = 'name';
     else if (R(c.name) >= 0.6 && distinctRatio >= 0.6 && avgWords >= 2) kind = 'name';
     else if (R(c.shortCaseless) >= 0.6 && distinctRatio >= 0.6) kind = 'name';
     else if (R(c.nospace) >= 0.9 && distinctRatio >= 0.9 && info.nonEmpty >= 10 && /\d/.test(sample[0])) kind = 'id';
@@ -302,15 +368,19 @@
     res.kind = kind;
     // Text in a script without letter case: the tool cannot tell names from other words, so it asks the user to check.
     res.review = R(c.caseless) >= 0.5 && (kind === 'category' || kind === 'text');
+    // A short text column whose values are nearly all different is often names, IDs or other private values.
+    if (kind === 'category' && info.nonEmpty >= 20 && distinctRatio >= 0.7 && avgLen <= 60) res.review = true;
+    // Values that read like person names, repeated many times (a doctor, a guardian, a customer).
+    if (kind === 'category' && info.nonEmpty >= 10 && R(c.name) >= 0.6) res.review = true;
+    res.sensitive = (hint.sensitive || (R(c.icd) >= 0.8 && R(c.icdDot) >= 0.3)) && (kind === 'category' || kind === 'text');
+    res.age = hint.age && kind === 'number';
     res.serialDates = kind === 'date' && c.serial > 0;
-    res.personal = !!PERSONAL_KINDS[kind] || (kind === 'date' && hint.birth);
+    res.personal = !!PERSONAL_KINDS[kind] || (kind === 'date' && hint.birth) || res.sensitive;
     res.freeText = kind === 'text';
-    if (kind === 'address') res.qi = true;
-    if (PERSONAL_KINDS[kind] && kind !== 'address') res.qi = false;
     return res;
   }
 
-  var ID_PREFIX = [[/staff|employee/, 'EMP'], [/customer|client/, 'CUST'], [/patient/, 'PATIENT'], [/student/, 'STUDENT'], [/member/, 'MEMBER'], [/file|case/, 'CASE']];
+  var ID_PREFIX = [[/card/, 'CARD'], [/(^|_)ip(_|$)|ipaddress/, 'IP'], [/user|login|handle/, 'USER'], [/account|bank/, 'ACCOUNT'], [/mrn/, 'PATIENT'], [/staff|employee/, 'EMP'], [/customer|client/, 'CUST'], [/patient/, 'PATIENT'], [/student/, 'STUDENT'], [/member/, 'MEMBER'], [/file|case/, 'CASE']];
   function suggest(cls, header) {
     var k = cls.kind;
     var p = defaultParams();
@@ -321,6 +391,7 @@
       if (k === 'id') {
         var norm = normalizeColumnName(header);
         for (var i = 0; i < ID_PREFIX.length; i++) if (ID_PREFIX[i][0].test(norm)) { p.prefix = ID_PREFIX[i][1]; break; }
+        if (cls.idPrefix) p.prefix = cls.idPrefix;
       }
     } else if (k === 'phone') {
       r.status = 'mask'; r.strategy = 'partial'; p.keepN = 2; p.side = 'last'; p.keepSep = true;
@@ -334,6 +405,14 @@
       r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'band'; p.width = 1000;
     } else if (k === 'text') {
       r.status = 'mask'; r.strategy = 'scrub';
+    } else if (k === 'url') {
+      r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'urlhost';
+    } else if (cls.age) {
+      r.status = 'mask'; r.strategy = 'gen'; p.genMode = 'band'; p.width = 5;
+    } else if (k === 'location') {
+      r.status = 'mask'; r.strategy = 'num'; p.numMode = 'round'; p.roundTo = 0.1;
+    } else if (cls.sensitive) {
+      r.status = 'mask'; r.strategy = 'pseudo'; p.prefix = cleanPrefix(normalizeColumnName(header).toUpperCase());
     } else if (k === 'empty') {
       r.status = 'hide';
     }
@@ -506,8 +585,10 @@
   // Placeholders must never look like PREFIX_X or PREFIX-X, or restore reads them as codes.
   function scrubText(s, ctx, colName) {
     var out = s;
+    out = out.replace(RX.urlG, function () { ctx.stats.scrubHits++; return '[URL]'; });
     out = out.replace(RX.emailG, function () { ctx.stats.scrubHits++; return '[EMAIL]'; });
     out = out.replace(RX.idG, function () { ctx.stats.scrubHits++; return '[ID NO]'; });
+    out = out.replace(RX.ipG, function () { ctx.stats.scrubHits++; return '[IP]'; });
     out = out.replace(RX.phoneG, function (m) {
       var digits = m.replace(/\D/g, '').length;
       if (digits < 9 || digits > 15 || /^\d{4}-\d{2}-\d{2}$/.test(m)) return m;
@@ -568,7 +649,8 @@
           if (!d) return markUnparsed(ctx, col);
           if (mode === 'year') return String(d.y);
           var w = Math.max(1, parseInt(p.width, 10) || 5);
-          var age = ageAt(d, ctx.session.now);
+          // Thai dates use the Buddhist era (year + 543).
+          var age = ageAt({ y: d.y > ctx.session.now.getFullYear() + 50 ? d.y - 543 : d.y, m: d.m, d: d.d }, ctx.session.now);
           if (w === 1) return String(age);
           var lo = Math.floor(age / w) * w;
           return lo + '-' + (lo + w - 1);
@@ -581,9 +663,17 @@
           var intBand = Number.isInteger(bw) && Number.isInteger(blo);
           return intBand ? (blo + '-' + (blo + bw - 1)) : (blo.toFixed(2) + '-' + (blo + bw).toFixed(2));
         }
+        if (mode === 'urlhost') {
+          var um = /^(?:[a-z][a-z0-9+.-]*:\/\/)?([^\/?#\s:]+)/i.exec(s);
+          return um ? um[1].toLowerCase() : markUnparsed(ctx, col);
+        }
         if (mode === 'region') {
           var segs = s.split(/[,;\n]+/).map(function (x) { return x.trim(); }).filter(Boolean);
-          if (segs.length < 2) return markUnparsed(ctx, col);
+          if (segs.length < 2) {
+            // Addresses that run from the largest area to the smallest (Japan, China, Korea): keep the first area only.
+            var big = /^(.{2,4}?[都道府県省市区]|.{2,6}?(?:特别行政区|自治区)|\S{2,6}?[도시])/u.exec(segs[0] || '');
+            return big ? big[1] : markUnparsed(ctx, col);
+          }
           var keepParts = segs.slice(-Math.max(1, parseInt(p.parts, 10) || 1)).map(function (x) {
             return x.split(/\s+/).filter(function (t) { return !/\d/.test(t); }).join(' ');
           }).filter(Boolean);
@@ -634,23 +724,6 @@
       if (unique) return ci;
     }
     return -1;
-  }
-
-  // ---------- k-anonymity ----------
-  function kAnonymity(rows, qiIdx, k) {
-    var groups = new Map();
-    rows.forEach(function (r) {
-      var key = qiIdx.map(function (i) { return r[i]; }).join('\u0001');
-      groups.set(key, (groups.get(key) || 0) + 1);
-    });
-    var small = [], unique = 0, rowsBelow = 0, minSize = Infinity;
-    groups.forEach(function (n, key) {
-      if (n < minSize) minSize = n;
-      if (n === 1) unique++;
-      if (n < k) { rowsBelow += n; small.push({ values: key.split('\u0001'), n: n }); }
-    });
-    small.sort(function (a, b) { return a.n - b.n; });
-    return { groups: groups.size, unique: unique, rowsBelow: rowsBelow, minSize: groups.size ? minSize : 0, small: small, k: k, total: rows.length };
   }
 
   // ---------- restore ----------
@@ -739,7 +812,7 @@
     classifyColumn: classifyColumn, headerHint: headerHint, suggest: suggest, defaultParams: defaultParams, cleanPrefix: cleanPrefix,
     sanitizeValue: sanitizeValue, maskValue: maskValue, newContext: newContext, buildDict: buildDict,
     scrubText: scrubText, nameParts: nameParts, looksLikeData: looksLikeData, partialRevealsDate: partialRevealsDate,
-    parseNumber: parseNumber, kAnonymity: kAnonymity, parseKeyRows: parseKeyRows,
+    parseNumber: parseNumber, parseKeyRows: parseKeyRows,
     buildRestoreRe: buildRestoreRe, restoreText: restoreText, restoreRows: restoreRows, pickAnchor: pickAnchor, buildCodeOrder: buildCodeOrder,
     formulaSafe: formulaSafe,
     KIND_LABEL: KIND_LABEL, DEFAULT_PREFIX: DEFAULT_PREFIX
