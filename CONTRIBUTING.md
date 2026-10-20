@@ -2,7 +2,7 @@
 
 ## Rules that protect users
 
-- The page must make no network request. A Content-Security-Policy blocks them. Tests check it. Never add a library that fetches data.
+- The only network request is the public GitHub star count. A Content-Security-Policy allows nothing else. Tests check it. Never add a request, and never add a library that fetches data.
 - Never put real personal data in a sample, a test, an issue or a screenshot. `samples/` has fictional data only.
 - Write every message in plain English. Use short sentences and common words. Readers come from all over the world.
 - Say each hint once. A hint that repeats on every card belongs in the legend.

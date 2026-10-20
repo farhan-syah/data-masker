@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; child-src blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; child-src blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src https://api.github.com; media-src 'none'; object-src 'none'; frame-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Data Masking Tool</title>
@@ -191,7 +191,9 @@ dialog h2 { color: var(--danger); }
 .rows-pick .radio-line span.n { color: var(--muted); font-weight: 400; }
 .rows-extra { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; margin-top: 8px; }
 footer { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: .84rem; }
-footer .wrap { padding-top: 10px; padding-bottom: 10px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+footer .wrap { padding-top: 10px; padding-bottom: 10px; display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; align-items: center; }
+footer .links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.stars { margin-left: 6px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 999px; font-size: .78rem; color: var(--text); background: var(--bg); }
 @media print { .tabs-bar, footer, .btn { display: none; } }
 
 /* extras */
@@ -572,8 +574,15 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   </section>
   <section class="wide">
     <h3>About</h3>
-    <p>Data Masking Tool development build. It makes no network requests. No data leaves this page.</p>
+    <p>Data Masking Tool development build. Your files stay on this computer. The tool never sends any data from your files.</p>
+    <p>The page makes one public request to GitHub to read the star count. The request has no data from you. If it fails, the tool works the same.</p>
     <p>It includes SheetJS Community Edition 0.20.3 (Apache License 2.0) to read and write Excel files.</p>
+    <p>The tool is free and open source (MIT licence). These links open GitHub in a new tab.</p>
+    <ul>
+      <li><a href="https://github.com/farhan-syah/data-masker" target="_blank" rel="noopener noreferrer">Source code and star on GitHub</a></li>
+      <li><a href="https://github.com/farhan-syah/data-masker/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">Report a bug</a>. Never attach real personal data.</li>
+      <li><a href="https://github.com/farhan-syah/data-masker/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">Request a feature</a></li>
+    </ul>
   </section>
 </section>
 </main>
@@ -590,7 +599,14 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn" id="key-cancel">Cancel</button><button type="button" class="btn danger" id="key-confirm" disabled>Download match file</button></div>
 </dialog>
 
-<footer><div class="wrap"><span>Data Masking Tool development build</span><span id="engine"></span></div></footer>
+<footer><div class="wrap"><span>Data Masking Tool development build</span>
+  <nav class="links" aria-label="Project links">
+    <a href="https://github.com/farhan-syah/data-masker" target="_blank" rel="noopener noreferrer">Source code</a>
+    <a href="https://github.com/farhan-syah/data-masker" target="_blank" rel="noopener noreferrer">Star on GitHub</a><span id="stars" class="stars" hidden></span>
+    <a href="https://github.com/farhan-syah/data-masker/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">Report a bug</a>
+    <a href="https://github.com/farhan-syah/data-masker/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">Request a feature</a>
+  </nav>
+  <span id="engine"></span></div></footer>
 
 <!--
 SheetJS Community Edition 0.20.3 — https://sheetjs.com
@@ -2989,6 +3005,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     announce(stats.replaced + ' codes were changed back.');
   }
 
+  // The only network request of the page: the public star count of the project on GitHub.
+  // It sends nothing from the user's files. A failure changes nothing. The answer is kept for one hour.
+  function loadStars() {
+    var el = $('#stars'), KEY = 'dm-stars', now = Date.now();
+    function show(n) { el.textContent = '★ ' + fmtInt(n); el.hidden = false; el.setAttribute('aria-label', fmtInt(n) + ' stars on GitHub'); }
+    try {
+      var c = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (c && typeof c.n === 'number') { show(c.n); if (now - c.t < 3600000) return; }
+    } catch (e) { /* storage can be blocked */ }
+    if (!window.fetch) return;
+    fetch('https://api.github.com/repos/farhan-syah/data-masker', { method: 'GET', headers: { Accept: 'application/vnd.github+json' }, credentials: 'omit', referrerPolicy: 'no-referrer', mode: 'cors' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || typeof j.stargazers_count !== 'number') return;
+        show(j.stargazers_count);
+        try { localStorage.setItem(KEY, JSON.stringify({ n: j.stargazers_count, t: now })); } catch (e) { /* ignore */ }
+      })
+      .catch(function () { /* offline: no count */ });
+  }
+
   // ---------- init ----------
   function init() {
     initTabs(); initLoad(); initSanitise(); initExport(); initRestore();
@@ -3003,6 +3039,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     function engineText() { return 'SheetJS ' + (window.XLSX ? window.XLSX.version : '?'); }
     $('#engine').textContent = engineText();
     Bridge.call({ type: 'ping' }).then(function () { $('#engine').textContent = engineText(); });
+    setTimeout(loadStars, 600);
     window.__dm = { state: state, generate: generate, schemaText: schemaText, keyAoa: keyAoa, toCSV: toCSV, bridge: Bridge };
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

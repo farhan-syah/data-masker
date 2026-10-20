@@ -10,7 +10,9 @@ Hide personal data in a CSV or Excel file before you share it. It runs in your b
 2. Press **Try a sample file**, or choose your own CSV or Excel file.
 3. Check each column. Download the masked data. Keep the match file private.
 
-The page needs no install, no account and no internet. A Content-Security-Policy blocks every network request. The page cannot send your file anywhere, even from a web server.
+The page needs no install and no account. It works without internet. A Content-Security-Policy allows one request only: a public call to `api.github.com` that reads the star count. That request has no data from you. The page cannot send your file anywhere, even from a web server.
+
+[Report a bug](https://github.com/farhan-syah/data-masker/issues/new?template=bug_report.yml) · [Request a feature](https://github.com/farhan-syah/data-masker/issues/new?template=feature_request.yml) · [Star the repo](https://github.com/farhan-syah/data-masker)
 
 ## Read this first
 

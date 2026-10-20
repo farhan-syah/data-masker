@@ -1337,6 +1337,26 @@
     announce(stats.replaced + ' codes were changed back.');
   }
 
+  // The only network request of the page: the public star count of the project on GitHub.
+  // It sends nothing from the user's files. A failure changes nothing. The answer is kept for one hour.
+  function loadStars() {
+    var el = $('#stars'), KEY = 'dm-stars', now = Date.now();
+    function show(n) { el.textContent = '★ ' + fmtInt(n); el.hidden = false; el.setAttribute('aria-label', fmtInt(n) + ' stars on GitHub'); }
+    try {
+      var c = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (c && typeof c.n === 'number') { show(c.n); if (now - c.t < 3600000) return; }
+    } catch (e) { /* storage can be blocked */ }
+    if (!window.fetch) return;
+    fetch('https://api.github.com/repos/farhan-syah/data-masker', { method: 'GET', headers: { Accept: 'application/vnd.github+json' }, credentials: 'omit', referrerPolicy: 'no-referrer', mode: 'cors' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || typeof j.stargazers_count !== 'number') return;
+        show(j.stargazers_count);
+        try { localStorage.setItem(KEY, JSON.stringify({ n: j.stargazers_count, t: now })); } catch (e) { /* ignore */ }
+      })
+      .catch(function () { /* offline: no count */ });
+  }
+
   // ---------- init ----------
   function init() {
     initTabs(); initLoad(); initSanitise(); initExport(); initRestore();
@@ -1351,6 +1371,7 @@
     function engineText() { return 'SheetJS ' + (window.XLSX ? window.XLSX.version : '?'); }
     $('#engine').textContent = engineText();
     Bridge.call({ type: 'ping' }).then(function () { $('#engine').textContent = engineText(); });
+    setTimeout(loadStars, 600);
     window.__dm = { state: state, generate: generate, schemaText: schemaText, keyAoa: keyAoa, toCSV: toCSV, bridge: Bridge };
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

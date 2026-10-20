@@ -45,7 +45,14 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1366, height: 768 } });
 const requests = [], errors = [];
 context.on('request', r => requests.push(r.url()));
-await context.route('**/*', route => route.request().url().startsWith('file:') ? route.continue() : route.abort());
+const STAR_URL = 'https://api.github.com/repos/farhan-syah/data-masker';
+const starCalls = [];
+await context.route('**/*', route => {
+  const rq = route.request(), u = rq.url();
+  if (u.startsWith('file:')) return route.continue();
+  if (u === STAR_URL) { starCalls.push({ method: rq.method(), body: rq.postData() }); return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ stargazers_count: 42 }) }); }
+  return route.abort();
+});
 
 let page;
 async function open() {
@@ -80,6 +87,8 @@ const downloadKey = tag => download(async () => {
 
 // ---------- sample: suggestions, examples, downloads, leaks ----------
 await open();
+await page.waitForFunction(() => !document.querySelector('#stars').hidden, null, { timeout: 5000 });
+check('the footer shows the star count', (await page.textContent('#stars')).includes('42'));
 check('data tabs are off before a file is open', await page.$eval('#tab-columns', e => e.disabled));
 await load(SAMPLES + 'staff-list-sample.csv');
 const kinds = await page.evaluate(() => Object.fromEntries(window.__dm.state.cols.map(c => [c.header, c.kind + '/' + c.status + '/' + c.strategy])));
@@ -212,9 +221,10 @@ const probe = await page.evaluate(async () => {
 });
 check('the page refuses fetch to another site and to its own server', probe.other === 'refused' && probe.same === 'refused', JSON.stringify(probe));
 await page.close(); server.close();
-const stray = requests.filter(u => !/^(file|data|blob):/.test(u) && !u.startsWith(url));
-check('no request left the page', stray.length === 0, stray.join(' '));
-check('no page errors', errors.filter(e => !/example\.com|index\.html|Failed to fetch|Content Security Policy/.test(e)).length === 0, errors.slice(0, 3).join(' | '));
+const stray = requests.filter(u => !/^(file|data|blob):/.test(u) && !u.startsWith(url) && u !== STAR_URL);
+check('no request left the page except the GitHub star count', stray.length === 0, stray.join(' '));
+check('the star count request is one plain GET with no body', starCalls.length >= 1 && starCalls.every(c => c.method === 'GET' && !c.body), JSON.stringify(starCalls));
+check('no page errors', errors.filter(e => !/example\.com|index\.html|Failed to fetch|Content Security Policy|ERR_FAILED/.test(e)).length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall passed');
