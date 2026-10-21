@@ -433,8 +433,9 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
     <div id="export-status"></div>
     <div class="export-grid">
       <div>
-        <h3>Column names only (safest)</h3>
-        <p class="help">A list of the columns, their types and one masked example. It has no rows from your file.</p>
+        <h3>Column names and types only (safest)</h3>
+        <p class="help">A list of the columns and their types. It has no rows and no example values from your file.</p>
+        <div class="field check"><input type="checkbox" id="schema-example" aria-describedby="schema-example-h"><label for="schema-example">Also include one masked example for each column</label><p class="help" id="schema-example-h">Example values can still reveal something. Leave this off when in doubt.</p></div>
         <div class="btn-row"><button type="button" class="btn" id="copy-schema">Copy column names</button><button type="button" class="btn" id="dl-schema">Download column names</button></div>
       </div>
       <div>
@@ -518,7 +519,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <section>
     <h3>Share as little as you can</h3>
     <ol>
-      <li><b>Column names only.</b> Enough for an AI to write a formula.</li>
+      <li><b>Column names and types only.</b> No example values. Enough for an AI to write a formula.</li>
       <li><b>A small masked sample.</b> 20 to 50 rows. Use it when the AI must see real-looking values.</li>
       <li><b>Totals.</b> Count on your own computer and share only the totals.</li>
     </ol>

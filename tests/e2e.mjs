@@ -121,6 +121,34 @@ const leaks = [];
 orig.forEach(r => ['Full Name', 'National ID', 'Email', 'Phone', 'Employee ID'].forEach(k => { if (everything.includes(r[k])) leaks.push(r[k]); }));
 check('no original name, ID, email or phone in the CSV, XLSX, column names or settings', leaks.length === 0, leaks.slice(0, 4).join(' | '));
 check('column names export shows no real value for a kept column', !orig.some(r => fs.readFileSync(schema, 'utf8').includes(r['Job Title']) || fs.readFileSync(schema, 'utf8').includes(r['Notes']) && r['Notes']));
+// Names-and-types export: default has no value from any row. The checkbox adds one masked example per column.
+{
+  await tab('p-export');
+  const schemaDefault = fs.readFileSync(schema, 'utf8');
+  const realValues = new Set(); orig.forEach(r => Object.values(r).forEach(v => { v = String(v).trim(); if (v.length >= 3) realValues.add(v); }));
+  const found = [...realValues].filter(v => schemaDefault.includes(v));
+  check('default names-and-types export has no value from any data row', found.length === 0 && realValues.size > 100, found.slice(0, 4).join(' | '));
+  check('default names-and-types export has no example column', !/example/i.test(schemaDefault.split('\n').filter(l => l.startsWith('|')).join('\n')) && schemaDefault.includes('| Column | Data type |\r\n'), schemaDefault.slice(0, 200));
+  check('the example checkbox is off by default and has its label and help text', await page.isChecked('#schema-example') === false &&
+    (await page.textContent('label[for="schema-example"]')) === 'Also include one masked example for each column' &&
+    (await page.textContent('#schema-example-h')) === 'Example values can still reveal something. Leave this off when in doubt.');
+  await page.click('label[for="schema-example"]');
+  const schemaEx = fs.readFileSync(await download(() => page.click('#dl-schema'), 'ex'), 'utf8');
+  const tbl = schemaEx.split(/\r?\n/).filter(l => l.startsWith('|')).slice(2).map(l => l.split(/(?<!\\)\|/).slice(1, -1).map(x => x.trim()));
+  const colNames = await page.evaluate(() => window.__dm.state.cols.filter(c => c.status !== 'hide').map(c => c.header));
+  check('the checkbox adds one masked example for each column', tbl.length === colNames.length && tbl.every(r => r.length === 3 && r[2] !== ''), JSON.stringify(tbl.slice(0, 3)));
+  const kept = await page.evaluate(() => window.__dm.state.cols.filter(c => c.status !== 'hide').map(c => c.status));
+  const realByCol = colNames.map(h => new Set(orig.map(r => String(r[h] ?? '').trim())));
+  const equal = tbl.filter((r, j) => kept[j] === 'mask' && realByCol[j].has(r[2]));
+  const maskedCount = tbl.filter((r, j) => kept[j] === 'mask' && r[2] && !/^\(/.test(r[2])).length;
+  check('a masked example never equals a real value, and masked columns show a masked value', equal.length === 0 && maskedCount >= 5, JSON.stringify(equal));
+  const anyReal = [...realValues].filter(v => v.length >= 6 && schemaEx.includes(v) && !/^(Number|Name)/.test(v));
+  const keptReal = tbl.filter((r, j) => kept[j] === 'accept' && !/^\(.*original values\)$/.test(r[2]));
+  check('a kept column shows a label, never a real value, in the example export', keptReal.length === 0 && anyReal.length === 0, anyReal.slice(0, 3).join(' | '));
+  check('a free-text column shows a label, not its text, in the example export', /\| Notes \| Free text \| \(free text, names and numbers hidden\) \|/.test(schemaEx), schemaEx.split('\n').filter(l => /Notes/.test(l)).join(' / '));
+  await page.click('label[for="schema-example"]');
+  await tab('p-columns');
+}
 const salaryOk = masked1.every((r, i) => /^\d+(\.\d+)?$/.test(r['Salary']) && Math.abs(+r['Salary'] / +orig[i]['Salary'] - 1) <= 0.0501);
 const dobOk = masked1.every(r => /^\d\d\/\d\d\/\d{4}$/.test(r['Date of Birth']));
 const meanOf = a => a.reduce((x, y) => x + y, 0) / a.length;

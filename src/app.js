@@ -1086,8 +1086,8 @@
         copyText(toCSV([res.header].concat(res.rows), true), 'Copied the masked data (' + fmtInt(res.rows.length) + ' rows) as CSV text.', $('#copy-data'));
       });
     });
-    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(), 'Copied the column names.', $('#copy-schema')); });
-    $('#dl-schema').addEventListener('click', function () { download('column-names-' + stamp() + '.txt', '﻿' + schemaText(), 'text/plain;charset=utf-8'); });
+    $('#copy-schema').addEventListener('click', function () { copyText(schemaText(schemaWithExample()), 'Copied the column names.', $('#copy-schema')); });
+    $('#dl-schema').addEventListener('click', function () { download('column-names-' + stamp() + '.txt', '﻿' + schemaText(schemaWithExample()), 'text/plain;charset=utf-8'); });
     // The match file always belongs to the masked data the user last downloaded. Sequential codes depend
     // on every setting, so a match file made from other settings would point codes at the wrong people.
     var pendingKey = null;
@@ -1152,44 +1152,47 @@
     return aoa;
   }
 
-  function treatment(c) {
-    if (c.status === 'accept') return 'Keep (original values)';
-    var p = c.params;
-    switch (c.strategy) {
-      case 'pseudo': return 'Replace with code (' + L.cleanPrefix(p.prefix) + '_…)';
-      case 'partial': return 'Hide part (keep ' + (parseInt(p.keepN, 10) || 0) + ' characters at the ' + (p.side === 'first' ? 'start' : 'end') + ')';
-      case 'gen': return 'Shorten the text (' + ({ firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
-      case 'group': return 'Range or group, changes the format (' + ({ year: 'year', age: 'age in years', ageband: p.width + '-year age group', band: 'range of ' + p.width })[p.genMode] + ')';
-      case 'shift': return state.session.shiftMode === 'file' ? 'Shift dates (one shift for the file)' : 'Shift dates (a different shift for each row)';
-      case 'num': return p.numMode === 'noise' ? 'Round or adjust numbers (random change ±' + p.noisePct + '%)' : 'Round or adjust numbers (round to ' + p.roundTo + ')';
-      case 'fixed': return 'Replace with fixed text';
-      case 'scrub': return 'Mask names in notes';
-    }
-    return '';
-  }
-  function schemaText() {
+  function schemaText(withExample) {
     var idx = outputIndices();
     var run = prepareRun();
     var examples = run.outCols.map(function () { return ''; });
-    var need = run.outCols.length;
-    for (var i = 0; i < idx.length && i < 300 && need > 0; i++) {
-      var out = processRow(idx[i], run.outCols, run.ctx);
-      out.forEach(function (v, j) { if (!examples[j] && v) { examples[j] = v; need--; } });
+    if (withExample) {
+      var real = run.outCols.map(function (c) {
+        var set = new Set();
+        state.rows.forEach(function (row) {
+          var v = String(row[c.idx] == null ? '' : row[c.idx]);
+          set.add(v); set.add(v.trim());
+        });
+        return set;
+      });
+      var need = run.outCols.length;
+      for (var i = 0; i < idx.length && i < 300 && need > 0; i++) {
+        var out = processRow(idx[i], run.outCols, run.ctx);
+        out.forEach(function (v, j) {
+          if (!examples[j] && v && run.outCols[j].status === 'mask' && !real[j].has(String(v)) && !real[j].has(String(v).trim())) { examples[j] = v; need--; }
+        });
+      }
+      // A kept column would show a real value, so it shows a label.
+      run.outCols.forEach(function (c, j) {
+        if (c.status === 'accept') examples[j] = '(' + L.KIND_LABEL[c.kind].toLowerCase() + ', original values)';
+        // Free text keeps every word that is not a name or a number, so it never shows as an example.
+        else if (c.strategy === 'scrub') examples[j] = '(free text, names and numbers hidden)';
+        else if (!examples[j]) examples[j] = '(no masked example)';
+      });
     }
-    // Only masked columns show an example. A kept column would show a real value.
-    run.outCols.forEach(function (c, j) { if (c.status === 'accept') examples[j] = '(' + L.KIND_LABEL[c.kind].toLowerCase() + ', original values)'; });
     var lines = [];
-    lines.push('Column names, data types and one masked example. No data rows.');
+    lines.push(withExample ? 'Column names, data types and one masked example for each column. No data rows.' : 'Column names and data types only. No example values. No data rows.');
     lines.push('Rows in the file: ' + idx.length + '. Columns: ' + run.outCols.length + '.');
     lines.push('');
-    lines.push('| Column | Data type | Masking method | Masked example |');
-    lines.push('|---|---|---|---|');
+    lines.push(withExample ? '| Column | Data type | Masked example |' : '| Column | Data type |');
+    lines.push(withExample ? '|---|---|---|' : '|---|---|');
     run.outCols.forEach(function (c, j) {
-      var cell = function (s) { return String(s).replace(/\|/g, '\\|').replace(/\s+/g, ' '); };
-      lines.push('| ' + cell(c.outName) + ' | ' + cell(L.KIND_LABEL[c.kind]) + ' | ' + cell(treatment(c)) + ' | ' + cell(trunc(examples[j] || '(empty)', 60)) + ' |');
+      var cell = function (t) { return String(t).replace(/\|/g, '\\|').replace(/\s+/g, ' '); };
+      lines.push('| ' + cell(c.outName) + ' | ' + cell(L.KIND_LABEL[c.kind]) + (withExample ? ' | ' + cell(trunc(examples[j], 60)) : '') + ' |');
     });
     return lines.join('\r\n') + '\r\n';
   }
+  function schemaWithExample() { var el = $('#schema-example'); return !!(el && el.checked); }
 
   function renderExport() {
     renderRowsControls();

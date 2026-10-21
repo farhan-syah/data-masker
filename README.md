@@ -46,7 +46,7 @@ The tool masks direct identifiers by default: names, IDs, emails, phone numbers,
 | Risk check | Fix every red item. Read every yellow item. |
 | Restore names | Turn codes in an AI answer back into real names. |
 
-Share the least data you can. Column names only is safest. A masked sample is next. Totals you count yourself are also safe.
+Share the least data you can. Column names and types only is safest. It has no example values. A checkbox adds one masked example for each column. Leave it off when in doubt. A masked sample is next. Totals you count yourself are also safe.
 
 ## Masking methods
 
