@@ -175,6 +175,24 @@ await page.click('#restore-btn'); await page.waitForSelector('#restore-text-out:
 check('pasted text is restored, unknown codes are reported', await page.inputValue('#restore-output') === `${orig[0]['Full Name']} and ${orig[0]['Full Name']} and PERSON_999.` && /PERSON_999/.test(await page.textContent('#restore-msg')));
 await page.close();
 
+// ---------- methods that change the format are opt-in, with a clear warning ----------
+await open();
+await load(SAMPLES + 'staff-list-small.csv');
+await tab('p-columns');
+await setStatus('Salary', 'mask');
+const salI = await colIdx('Salary');
+const offered = await page.$$eval(`#f-${salI}-strategy option`, o => o.map(x => x.textContent));
+check('a number column offers a range method that says it changes the format', offered.some(t => /changes the format/.test(t)) && offered.some(t => /Round or change numbers/.test(t)), offered.join(' | '));
+await page.selectOption(`#f-${salI}-strategy`, 'group');
+check('the card warns that the format changes', /changes the format/i.test(await page.textContent(`#card-${salI} .msg.warn`)));
+const dobI = await colIdx('Date of Birth');
+await setStatus('Date of Birth', 'mask'); await page.selectOption(`#f-${dobI}-strategy`, 'group'); await page.selectOption(`#f-${dobI}-genMode`, 'year');
+await generate();
+const grp = toObjs(csvOf(await download(() => page.click('#dl-csv'), 'group')));
+check('salary becomes a range and date of birth becomes a year', grp.every(r => /^\d+-\d+$/.test(r['Salary']) && /^\d{4}$/.test(r['Date of Birth'])), JSON.stringify(grp[0]));
+check('the download summary lists the columns whose format changed', /format changed in: .*Salary/i.test(await page.textContent('#export-status')), await page.textContent('#export-status'));
+await page.close();
+
 // ---------- a file with no header row must not leak its first row ----------
 await open();
 const small = fs.readFileSync(SAMPLES + 'staff-list-small.csv', 'utf8').split(/\r?\n/).filter(Boolean);

@@ -159,6 +159,7 @@
     ['gen', 'Shorten the text', 'Keep only the first letters, the last part of an address, or the website of a web address.'],
     ['shift', 'Move dates', 'Move each date by a random number of days.'],
     ['num', 'Round or change numbers', 'Keep a number, but round it or change it by a small random amount. Charts and sums still work.'],
+    ['group', 'Replace with a range or group (changes the format)', 'Replace a date with a year, an age or an age group. Replace a number with a range. The result is text or a different type, so charts and sums cannot use it.'],
     ['fixed', 'Replace with fixed text', 'Every filled cell gets the same text. Empty cells stay empty.'],
     ['scrub', 'Hide names and numbers in notes', 'Hide names, IDs, emails and phone numbers in free text. Read the rest of the text yourself.']
   ];
@@ -168,10 +169,12 @@
     ['firstn', 'First letters'], ['region', 'Last part of an address (for example the country)'], ['urlhost', 'Website only, without the path']
   ];
   // Each method keeps the format of the column: numbers stay numbers, dates stay dates, text stays text.
+  var DATE_GROUPS = [['year', 'Year only, such as 1988'], ['age', 'Age in years, such as 38'], ['ageband', 'Age group, such as 35-39']];
+  var NUMBER_GROUPS = [['band', 'Range, such as 4000-4999']];
   var NUMBER_KINDS = { number: 1, money: 1, location: 1 };
   function allowedStrategies(c) {
-    if (c.kind === 'date') return ['shift'];
-    if (NUMBER_KINDS[c.kind]) return ['num'];
+    if (c.kind === 'date') return ['shift', 'group'];
+    if (NUMBER_KINDS[c.kind]) return ['num', 'group'];
     return ['pseudo', 'partial', 'gen', 'fixed', 'scrub'];
   }
 
@@ -573,6 +576,12 @@
         if (p.genMode === 'firstn') h += numField(c, 'firstN', 'How many letters', '', 0, 1);
         if (p.genMode === 'region') h += numField(c, 'parts', 'How many address parts to keep', 'Parts are separated by commas. Parts with digits, such as a postcode, are removed.', 1, 1);
         break;
+      case 'group':
+        h += '<p class="msg warn inline"><b>This changes the format.</b> ' + (c.kind === 'date' ? 'Dates become ' + (p.genMode === 'age' ? 'numbers' : 'text or numbers') + ' that are no longer dates.' : 'Numbers become text, such as 4000-4999.') + ' Charts, sums and sorting by date or value cannot use the result. Use this to share the file with people. For analysis, use “' + (c.kind === 'date' ? 'Move dates' : 'Round or change numbers') + '”.</p>';
+        h += selField(c, 'genMode', 'Replace with', '', c.kind === 'date' ? DATE_GROUPS : NUMBER_GROUPS);
+        if (p.genMode === 'ageband') h += numField(c, 'width', 'Years in each age group', 'Ages are worked out from today.', 1, 1);
+        if (p.genMode === 'band') h += numField(c, 'width', 'Size of each range', '', 1, 'any');
+        break;
       case 'shift':
         h += '<p class="help">' + (state.session.shiftMode === 'file' ? 'All rows move by the same number of days.' : 'Each row moves by a different number of days.') + ' Change this under “Dates and cleaning”.</p>';
         break;
@@ -696,6 +705,10 @@
         else if (c.kind === 'url') c.params.genMode = 'urlhost';
         else c.params.genMode = 'firstn';
       }
+      if (c.strategy === 'group') {
+        if (c.kind === 'date') { c.params.genMode = c.birth ? 'ageband' : 'year'; c.params.width = 5; }
+        else { c.params.genMode = 'band'; c.params.width = 1000; }
+      }
       if (c.strategy === 'pseudo' && (c.params.prefix === 'CODE' || c.params.prefix === 'TOKEN') && L.DEFAULT_PREFIX[c.kind]) c.params.prefix = L.DEFAULT_PREFIX[c.kind];
       rerenderCard(c); bump();
     });
@@ -704,6 +717,8 @@
       var ev = inp.tagName === 'SELECT' || inp.type === 'checkbox' ? 'change' : 'input';
       inp.addEventListener(ev, function () {
         c.params[key] = inp.type === 'checkbox' ? inp.checked : inp.value;
+        if (key === 'genMode' && inp.value === 'ageband' && (+c.params.width < 1 || +c.params.width > 50)) c.params.width = 5;
+        if (key === 'genMode' && inp.value === 'band' && +c.params.width < 10) c.params.width = 1000;
         if (inp.tagName === 'SELECT' || inp.type === 'checkbox' || key === 'keepN') rerenderCard(c);
         else updateExamples();
         bump();
@@ -906,7 +921,7 @@
 
   function isNumericOut(c) {
     if (c.status === 'accept') return c.kind === 'number' || c.kind === 'money';
-    return c.status === 'mask' && c.strategy === 'num';
+    return c.status === 'mask' && (c.strategy === 'num' || (c.strategy === 'group' && (c.params.genMode === 'age' || c.params.genMode === 'year')));
   }
 
   async function processRows(idx, run, version, onProgress) {
@@ -1144,6 +1159,7 @@
       case 'pseudo': return 'Replace with code (' + L.cleanPrefix(p.prefix) + '_…)';
       case 'partial': return 'Hide part (keep ' + (parseInt(p.keepN, 10) || 0) + ' characters at the ' + (p.side === 'first' ? 'start' : 'end') + ')';
       case 'gen': return 'Shorten the text (' + ({ firstn: 'first ' + p.firstN + ' characters', urlhost: 'website only', region: 'last ' + (parseInt(p.parts, 10) || 1) + ' address part(s)' })[p.genMode] + ')';
+      case 'group': return 'Range or group, changes the format (' + ({ year: 'year', age: 'age in years', ageband: p.width + '-year age group', band: 'range of ' + p.width })[p.genMode] + ')';
       case 'shift': return state.session.shiftMode === 'file' ? 'Shift dates (one shift for the file)' : 'Shift dates (a different shift for each row)';
       case 'num': return p.numMode === 'noise' ? 'Round or adjust numbers (random change ±' + p.noisePct + '%)' : 'Round or adjust numbers (round to ' + p.roundTo + ')';
       case 'fixed': return 'Replace with fixed text';
@@ -1186,6 +1202,8 @@
       var items = ['<li><b>' + fmtInt(res.rows.length) + '</b> rows and <b>' + res.header.length + '</b> columns are ready.</li>',
         '<li><b>' + fmtInt(res.keyRows.length) + '</b> codes are in the match file.</li>'];
       items.push('<li>Run ID <b>' + esc(res.runId) + '</b>. Both the masked file and the match file show it in their names.</li>');
+      var changed = state.cols.filter(function (c) { return c.status === 'mask' && c.strategy === 'group'; }).map(function (c) { return c.outName; });
+      if (changed.length) items.push('<li class="warn-t"><b>The format changed in: ' + esc(changed.join(', ')) + '.</b> Dates and numbers there are now years, ages, groups or ranges. Charts and sums cannot use them.</li>');
       if (res.shiftCols.length) items.push('<li>Dates moved in: ' + esc(res.shiftCols.join(', ')) + '.</li>');
       if (res.shiftCols.length && res.shiftMode === 'row' && !res.anchor) items.push('<li class="warn-t">No masked column has a different code in every row. To restore the dates later, keep the rows in the same order.</li>');
       if (res.stats.scrubHits) items.push('<li>' + fmtInt(res.stats.scrubHits) + ' names, numbers or emails in notes were hidden.</li>');

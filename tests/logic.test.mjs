@@ -95,6 +95,17 @@ check('addresses in Japanese, Chinese and Korean keep the first area only', (() 
   return m('東京都千代田区丸の内1-1-1') === '東京都' && m('广东省深圳市南山区科技园') === '广东省' && m('서울시 강남구 테헤란로 1') === '서울시';
 })());
 
+// Methods that change the format are opt-in and give years, ages, groups and ranges
+check('range and group methods change the format on purpose', (() => {
+  const mk = (kind, mode, width) => ({ kind, strategy: 'group', params: { ...L.defaultParams(), genMode: mode, width }, outName: 'x' });
+  const ctx = () => L.newContext({ ...session, now: new Date(2026, 5, 1) });
+  return L.maskValue('4120.00', mk('money', 'band', 1000), ctx(), 0) === '4000-4999' &&
+    L.maskValue('12/09/1991', mk('date', 'year'), ctx(), 0) === '1991' &&
+    L.maskValue('12/09/1991', mk('date', 'age'), ctx(), 0) === '34' &&
+    L.maskValue('12/09/1991', mk('date', 'ageband', 5), ctx(), 0) === '30-34' &&
+    L.maskValue('12/09/2534', mk('date', 'ageband', 5), ctx(), 0) === '30-34';
+})());
+
 // Format is kept: a number stays a number and a date stays a date
 check('masking never changes the format', (() => {
   const num = { kind: 'number', strategy: 'num', params: { ...L.defaultParams(), numMode: 'noise', noisePct: 5 }, outName: 'n', idx: 0 };

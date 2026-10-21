@@ -222,6 +222,13 @@
     x.setUTCDate(x.getUTCDate() + days);
     return { y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate() };
   }
+  function ageAt(dt, now) {
+    var ty = now.getFullYear(), tm = now.getMonth() + 1, td = now.getDate();
+    var a = ty - dt.y;
+    if (tm < dt.m || (tm === dt.m && td < dt.d)) a--;
+    return a;
+  }
+
   // A header cell that is really a value: an email, an ID, a phone number or a date.
   function looksLikeData(v) {
     var t = String(v == null ? '' : v).trim();
@@ -414,7 +421,7 @@
   function defaultParams() {
     return {
       prefix: 'CODE', tokenStyle: 'seq', keepN: 4, side: 'last', keepSep: true,
-      genMode: 'firstn', firstN: 3, parts: 1, numMode: 'round', roundTo: 100, noisePct: 5, fixedText: '[REMOVED]'
+      genMode: 'firstn', width: 5, firstN: 3, parts: 1, numMode: 'round', roundTo: 100, noisePct: 5, fixedText: '[REMOVED]'
     };
   }
 
@@ -654,6 +661,26 @@
         }
         var fn = Math.max(0, parseInt(p.firstN, 10) || 0);
         return Array.from(s).slice(0, fn).join('');
+      }
+      case 'group': {
+        // These methods change the format: a date becomes a year, an age or a group, and a number becomes a range.
+        var gm = p.genMode;
+        if (gm === 'year' || gm === 'age' || gm === 'ageband') {
+          var gd = parseDate(s, col.serialDates, ctx.session.now, ctx.session.dateOrder);
+          if (!gd) return markUnparsed(ctx, col);
+          if (gm === 'year') return String(gd.y);
+          var gw = Math.max(1, parseInt(p.width, 10) || 5);
+          // Thai dates use the Buddhist era (year + 543).
+          var age = ageAt({ y: gd.y > ctx.session.now.getFullYear() + 50 ? gd.y - 543 : gd.y, m: gd.m, d: gd.d }, ctx.session.now);
+          if (gm === 'age') return String(age);
+          var glo = Math.floor(age / gw) * gw;
+          return glo + '-' + (glo + gw - 1);
+        }
+        var nv = parseNumber(s);
+        if (!nv) return markUnparsed(ctx, col);
+        var bw = Math.abs(parseFloat(p.width)) || 1000;
+        var blo = Math.floor(nv.v / bw) * bw;
+        return Number.isInteger(bw) && Number.isInteger(blo) ? (blo + '-' + (blo + bw - 1)) : (blo.toFixed(2) + '-' + (blo + bw).toFixed(2));
       }
       case 'shift': {
         var dd = parseDate(s, col.serialDates, ctx.session.now, ctx.session.dateOrder);

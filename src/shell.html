@@ -512,7 +512,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
   <section>
     <h3>What this tool does</h3>
     <p>It replaces direct identifiers in a spreadsheet with codes. These are names, IDs, emails, phone numbers, addresses and names in notes. You can then share the copy.</p>
-    <p>It keeps dates, salaries and other values as they are, so charts and sums still work. You can choose Mask on any column. Masking never changes the type: a number stays a number, a date stays a date, and text stays text.</p>
+    <p>It keeps dates, salaries and other values as they are, so charts and sums still work. You can choose Mask on any column. By default, masking keeps the format: a number stays a number, a date stays a date, and text stays text. Only the methods marked “changes the format” turn them into ranges, years or ages.</p>
     <p>Everything happens in your browser. The tool never sends your file anywhere.</p>
   </section>
   <section>
@@ -548,6 +548,7 @@ input[type=search] { font: inherit; color: var(--text); background: #fff; border
         <tr><td>Shorten the text</td><td>Addresses and web addresses. Keep the first letters, the last part of an address, or the website.</td><td>12 Oak Street, Springfield, USA → USA<br>https://shop.example/u/maria → shop.example</td></tr>
         <tr><td>Move dates</td><td>Dates of birth and other dates. Each row moves by its own number of days. A date stays a date.</td><td>12/25/2004 → 03/12/2003</td></tr>
         <tr><td>Round or change numbers</td><td>Salaries and other numbers. A number stays a number. A small random change keeps totals, averages and charts almost the same.</td><td>4120.00 → 4283.09 (within 5%)<br>5708.84 → 5700</td></tr>
+        <tr><td>Replace with a range or group (changes the format)</td><td>Sharing with people, not for analysis. A date becomes a year, an age or an age group. A number becomes a range. The result is not a date or a number any more, so charts and sums cannot use it.</td><td>12/25/1988 → 1988, 38 or 35-39<br>4120.00 → 4000-4999</td></tr>
         <tr><td>Replace with fixed text</td><td>Text columns that must stay but have no useful content.</td><td>any value → [REMOVED]</td></tr>
         <tr><td>Hide names and numbers in notes</td><td>Notes, comments and other free text.</td><td>Supervisor: Liam Murphy → Supervisor: PERSON_014</td></tr>
       </tbody>

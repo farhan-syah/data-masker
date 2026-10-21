@@ -50,12 +50,13 @@ Share the least data you can. Column names only is safest. A masked sample is ne
 
 ## Masking methods
 
-Masking keeps the format. A number stays a number, a date stays a date, and text stays text. Each column offers only methods that keep its format.
+By default, masking keeps the format. A number stays a number, a date stays a date, and text stays text. This keeps charts, sums and dashboards working. Two methods are marked **changes the format**. Use them to share a file with people, not for analysis.
 
 | Method | What it does |
 |---|---|
 | Replace with a code | One code for each value, such as `PERSON_001`. The same value gets the same code. Numbers are in random order. Codes ignore capital letters. |
 | Hide part of the value | Show a few characters. The rest become `*`. |
+| Replace with a range or group (changes the format) | A date becomes a year, an age or an age group. A number becomes a range such as `4000-4999`. The result is text or a different type, so charts and sums cannot use it. |
 | Shorten the text | Keep the first letters, the last part of an address (such as the country), or the website of a web address. |
 | Move dates | The value stays a date. Each row moves by its own random number of days. Dates in one row stay the same distance apart. |
 | Round or change numbers | The value stays a number. Round it, or add a small random change. |
